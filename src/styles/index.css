@@ -1,0 +1,24 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+html,
+body,
+#root {
+    min-height: 100%;
+    background-color: hsl(var(--background));
+}
+
+body {
+    overflow-x: hidden;
+}
+
+/* Optional: hide scrollbar cleanly */
+::-webkit-scrollbar {
+    display: none;
+}
+
+* {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
