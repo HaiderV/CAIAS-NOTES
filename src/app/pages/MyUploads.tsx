@@ -136,7 +136,7 @@ export default function MyUploads() {
             // Delete Cloudinary file
             if (noteData.publicId) {
                 await axios.post(
-                    "http://localhost:5000/api/delete-note-file",
+                    `${import.meta.env.VITE_API_URL}/api/delete-note-file`,
                     {
                         publicId: noteData.publicId,
                     }

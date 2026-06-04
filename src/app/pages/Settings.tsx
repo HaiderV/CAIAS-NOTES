@@ -162,7 +162,7 @@ export default function Settings() {
 
           if (noteData.publicId) {
 
-            const response = await axios.post("http://localhost:5000/api/delete-note-file", {
+            const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/delete-note-file`, {
               publicId: noteData.publicId,
             });
 
@@ -254,7 +254,7 @@ export default function Settings() {
         try {
           if (noteData.publicId) {
             console.log("Deleting Cloudinary file:", noteData.publicId);
-            const response = await axios.post("http://localhost:5000/api/delete-note-file", {
+            const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/delete-note-file`, {
               publicId: noteData.publicId,
             });
             console.log("Cloudinary delete success:", response.data);
