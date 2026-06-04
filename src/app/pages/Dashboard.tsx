@@ -211,7 +211,7 @@ export default function Dashboard() {
       />
 
       {/* Main Content */}
-      <div className="flex-1 min-h-screen min-w-0 pb-20">
+      <div className="flex-1 min-h-screen min-w-0 pb-10">
         {/* Header */}
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border">
           <div className="flex items-center justify-between gap-2 px-3 sm:px-4 lg:px-8 h-16 min-w-0">

@@ -304,7 +304,7 @@ export default function Home() {
       {/* Course Categories Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-blue-950/20">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
+          <div className="text-center mb-7">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
               Browse by{" "}
               <span className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent">

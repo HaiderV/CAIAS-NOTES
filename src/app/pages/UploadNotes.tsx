@@ -113,20 +113,15 @@ export default function UploadNotes() {
 
       setUploadComplete(true);
 
-      // Reset form after successful upload
-      setTimeout(() => {
-        setFile(null);
-
-        setTitle("");
-        setSubject("");
-        setCourse("");
-        setSemester("");
-        setDescription("");
-        setNoteType("");
-
-        setUploadProgress(0);
-        setUploadComplete(false);
-      }, 2000);
+      // Reset form fields immediately
+      setFile(null);
+      setTitle("");
+      setSubject("");
+      setCourse("");
+      setSemester("");
+      setDescription("");
+      setNoteType("");
+      setUploadProgress(0);
     } catch (error: any) {
       toast.error(error.message || "Something went wrong");
       setUploadError(

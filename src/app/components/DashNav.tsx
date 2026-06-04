@@ -79,15 +79,18 @@ export default function DashNav() {
     return (
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {currentUser ? (
-                <Link to={`/profile/${currentUser?.uid}`} className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full">
+                <Link
+                    to={`/profile/${currentUser?.uid}`}
+                    className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+                >
                     {userData?.avatarUrl || currentUser.photoURL ? (
                         <img
                             src={userData?.avatarUrl || currentUser.photoURL || ""}
                             alt="User Profile"
-                            className="w-8 h-8 rounded-full object-cover border border-border hover:opacity-85 transition-opacity"
+                            className="w-9 h-9 rounded-full object-cover border border-border hover:opacity-85 transition-opacity"
                         />
                     ) : (
-                        <div className="w-8 h-8 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold hover:opacity-85 transition-opacity">
+                        <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold hover:opacity-85 transition-opacity">
                             {getInitials(
                                 userData?.firstName && userData?.lastName
                                     ? `${userData.firstName} ${userData.lastName}`
@@ -98,7 +101,7 @@ export default function DashNav() {
                 </Link>
             ) : (
                 <Link to="/login" className="shrink-0">
-                    <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-sm hover:bg-accent transition-colors">
+                    <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-muted-foreground text-sm hover:bg-accent transition-colors">
                         <User className="w-4 h-4" />
                     </div>
                 </Link>

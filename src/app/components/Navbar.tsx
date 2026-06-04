@@ -239,13 +239,6 @@ export default function Navbar() {
                 Home
               </Link>
               <Link
-                to="/browse"
-                className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Browse Notes
-              </Link>
-              <Link
                 to="/dashboard"
                 className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
@@ -256,7 +249,7 @@ export default function Navbar() {
               <div className="pt-4 border-t border-border">
                 {currentUser ? (
                   <Link
-                    to="/profile"
+                    to={`/profile/${currentUser?.uid}`}
                     className="flex items-center space-x-3 p-2 rounded-lg hover:bg-accent"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -285,13 +278,22 @@ export default function Navbar() {
                     </div>
                   </Link>
                 ) : (
-                  <div className="space-y-2">
-                    <Link to="/login" onClick={() => setMobileMenuOpen(false)}>
+                  <div className="space-y-3">
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block"
+                    >
                       <Button variant="outline" className="w-full">
                         Login
                       </Button>
                     </Link>
-                    <Link to="/register" onClick={() => setMobileMenuOpen(false)}>
+
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="block"
+                    >
                       <Button className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600">
                         Get Started
                       </Button>

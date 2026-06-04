@@ -524,7 +524,7 @@ export default function BrowseNotes() {
                             setSearchQuery(inputValue);
                           }
                         }}
-                        placeholder="Search notes, subjects, or topics..."
+                        placeholder="Search here!"
                         className="pl-10 h-10"
                       />
                     </div>
@@ -714,11 +714,10 @@ export default function BrowseNotes() {
                               </div>
 
                               {/* Actions */}
-                              <div className="flex sm:flex-col gap-2">
-
+                              <div className="flex flex-col sm:flex-row gap-2">
                                 <Link
                                   to={`/pdf-preview/${note.noteId}`}
-                                  className="flex-1 sm:flex-initial"
+                                  className="w-full sm:flex-1"
                                 >
                                   <Button variant="outline" className="w-full">
                                     <Eye className="w-4 h-4 mr-2" />
@@ -727,27 +726,28 @@ export default function BrowseNotes() {
                                 </Link>
 
                                 {note.fileUrl ? (
-                                  <Button className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90"
+                                  <Button
+                                    className="w-full sm:flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90"
                                     onClick={() =>
                                       handleDownload(
                                         note.noteId,
                                         note.fileUrl,
                                         note.title
                                       )
-                                    }>
+                                    }
+                                  >
                                     <Download className="w-4 h-4 mr-2" />
                                     Download
                                   </Button>
                                 ) : (
                                   <Button
                                     disabled
-                                    className="w-full bg-gray-400"
+                                    className="w-full sm:flex-1 bg-gray-400"
                                   >
                                     <Download className="w-4 h-4 mr-2" />
                                     Download
                                   </Button>
                                 )}
-
                               </div>
                             </div>
                           </CardContent>

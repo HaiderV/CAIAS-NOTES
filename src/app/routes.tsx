@@ -1,16 +1,20 @@
+import { lazy } from "react";
 import { createBrowserRouter } from "react-router";
+
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Dashboard from "./pages/Dashboard";
-import BrowseNotes from "./pages/BrowseNotes";
-import PDFPreview from "./pages/PDFPreview";
-import UploadNotes from "./pages/UploadNotes";
-import Profile from "./pages/Profile";
-import Settings from "./pages/Settings";
-import MyDownloads from "./pages/MyDownloads";
-import SavedNotes from "./pages/SavedNotes";
-import MyUploads from "./pages/MyUploads";
+
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const BrowseNotes = lazy(() => import("./pages/BrowseNotes"));
+const PDFPreview = lazy(() => import("./pages/PDFPreview"));
+const UploadNotes = lazy(() => import("./pages/UploadNotes"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Settings = lazy(() => import("./pages/Settings"));
+const MyDownloads = lazy(() => import("./pages/MyDownloads"));
+const SavedNotes = lazy(() => import("./pages/SavedNotes"));
+const MyUploads = lazy(() => import("./pages/MyUploads"));
+
 import ProtectedRoute from "./pages/protectedRoutes";
 import ErrorPage from "./pages/ErrorPage";
 
@@ -32,10 +36,9 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <ErrorPage />
+    element: <ErrorPage />,
   },
 
-  // Protected Routes
   {
     path: "/dashboard",
     element: (
