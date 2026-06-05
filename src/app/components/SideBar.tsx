@@ -94,20 +94,20 @@ export default function SideBar({
                         <Link key={item.label} to={item.href}>
                             <Button
                                 variant="ghost"
-                                className="w-full justify-start hover:bg-accent/50"
+                                className="w-full justify-start hover:bg-accent/50 h-12 text-base lg:h-10 lg:text-sm"
                                 onClick={() => setSidebarOpen(false)}
                             >
-                                <item.icon className="w-5 h-5 mr-3" />
+                                <item.icon className="w-6 h-6 mr-3 lg:w-5 lg:h-5" />
                                 {item.label}
                             </Button>
                         </Link>
                     ))}
                     <Button
                         variant="ghost"
-                        className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+                        className="w-full justify-start h-12 text-base lg:h-10 lg:text-sm text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
                         onClick={() => setShowLogoutConfirm(true)}
                     >
-                        <LogOut className="w-5 h-5 mr-3" />
+                        <LogOut className="w-6 h-6 mr-3 lg:w-5 lg:h-5" />
                         Log out
                     </Button>
                 </nav>

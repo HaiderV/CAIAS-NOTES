@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -17,7 +17,7 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
 import { getAuth } from "firebase/auth";
 
@@ -133,6 +133,30 @@ export default function UploadNotes() {
       setIsUploading(false);
     }
   };
+
+  //upload message
+  const uploadMessages = [
+    "Uploading your notes...",
+    "This may take a few seconds...",
+    "The server is waking up...",
+    "Our backend is hosted on Render and may need a moment to start.",
+    "Almost there..."
+  ];
+
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  useEffect(() => {
+    if (!isUploading) {
+      setMessageIndex(0);
+      return;
+    }
+
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % uploadMessages.length);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isUploading]);
 
   return (
     <div className="min-h-dvh bg-background overflow-x-hidden">
@@ -389,12 +413,28 @@ export default function UploadNotes() {
 
                   {/* Upload Progress */}
                   {isUploading && (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
                         <span>Uploading...</span>
                         <span>{uploadProgress}%</span>
                       </div>
+
                       <Progress value={uploadProgress} className="h-2" />
+
+                      <div className="h-6 overflow-hidden">
+                        <AnimatePresence mode="wait">
+                          <motion.p
+                            key={messageIndex}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.5 }}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {uploadMessages[messageIndex]}
+                          </motion.p>
+                        </AnimatePresence>
+                      </div>
                     </div>
                   )}
 
