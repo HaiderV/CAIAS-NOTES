@@ -8,13 +8,13 @@ import { auth } from "./firebase";
 const registerUser = async (email, password) => {
     try {
         // College email restriction
-        // const collegeEmailRegex = /^[a-zA-Z0-9]+@caias\.in$/;
+        const collegeEmailRegex = /^[a-zA-Z0-9]+@caias\.in$/;
 
-        // if (!collegeEmailRegex.test(email)) {
-        //     return {
-        //         error: "Only college emails (@caias.in) are allowed",
-        //     };
-        // }
+        if (!collegeEmailRegex.test(email)) {
+            return {
+                error: "Only college emails (@caias.in) are allowed",
+            };
+        }
 
         // Check if account already exists
         const methods = await fetchSignInMethodsForEmail(auth, email);

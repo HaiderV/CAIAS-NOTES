@@ -18,19 +18,3 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 export { auth, db };
-
-
-//rules
-// rules_version = '2';
-
-// service cloud.firestore {
-//   match /databases/{database}/documents
-//     match /{document=**} {
-//       allow read, write: if
-//         request.auth != null &&
-//         request.auth.token.email.matches(
-//           '^\\d{2}[a-zA-Z]{3}\\d{3}@caias\\.in$'
-//         );
-//     }
-//   }
-// }

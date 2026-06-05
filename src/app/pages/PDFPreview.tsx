@@ -27,19 +27,28 @@ export default function PDFPreview() {
 
   //note data fetch 
   const [note, setNote] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchNote = async () => {
       if (!noteId) return;
 
-      const noteRef = doc(db, "notes", noteId);
-      const noteSnap = await getDoc(noteRef);
+      try {
+        const noteRef = doc(db, "notes", noteId);
+        const noteSnap = await getDoc(noteRef);
 
-      if (noteSnap.exists()) {
-        setNote({
-          id: noteSnap.id,
-          ...noteSnap.data(),
-        });
+        if (noteSnap.exists()) {
+          setNote({
+            id: noteSnap.id,
+            ...noteSnap.data(),
+          });
+        } else {
+          toast.error("Note not found.");
+          setLoading(false);
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Failed to load note.");
+        setLoading(false);
       }
     };
 
@@ -51,17 +60,27 @@ export default function PDFPreview() {
   useEffect(() => {
     const fetchUploader = async () => {
       if (!note) return;
-      const uploaderRef = doc(db, "users", note?.uploadedBy);
-      const uploaderSnap = await getDoc(uploaderRef);
-      if (uploaderSnap.exists()) {
-        setUploader({
-          id: uploaderSnap.id,
-          ...uploaderSnap.data(),
-        });
+      if (!note.uploadedBy) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const uploaderRef = doc(db, "users", note.uploadedBy);
+        const uploaderSnap = await getDoc(uploaderRef);
+        if (uploaderSnap.exists()) {
+          setUploader({
+            id: uploaderSnap.id,
+            ...uploaderSnap.data(),
+          });
+        }
+      } catch (err: any) {
+        toast.error(err.message || "Failed to load uploader info.");
+      } finally {
+        setLoading(false);
       }
     };
     fetchUploader();
-  }, [note?.uploadedBy]);
+  }, [note]);
 
   const imageUrl =
     uploader?.avatarUrl &&
@@ -327,6 +346,18 @@ export default function PDFPreview() {
 
     return () => resizeObserver.disconnect();
   }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
+          <p className="text-muted-foreground text-sm font-medium animate-pulse">Loading PDF Preview...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background overflow-x-hidden antialiased selection:bg-indigo-500/30">
       {/* Header */}
