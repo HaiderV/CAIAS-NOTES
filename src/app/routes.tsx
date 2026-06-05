@@ -14,6 +14,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const MyDownloads = lazy(() => import("./pages/MyDownloads"));
 const SavedNotes = lazy(() => import("./pages/SavedNotes"));
 const MyUploads = lazy(() => import("./pages/MyUploads"));
+const NoticeBoard = lazy(() => import("./pages/NoticeBoard"));
 
 import ProtectedRoute from "./pages/protectedRoutes";
 import ErrorPage from "./pages/ErrorPage";
@@ -43,7 +44,15 @@ export const router = createBrowserRouter([
     ),
     errorElement: <ErrorPage />,
   },
-
+  {
+    path: "/NoticeBoard",
+    element: (
+      <ProtectedRoute>
+        <NoticeBoard />
+      </ProtectedRoute>
+    ),
+    errorElement: <ErrorPage />,
+  },
   {
     path: "/dashboard",
     element: (

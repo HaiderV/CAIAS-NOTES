@@ -14,7 +14,7 @@ import {
     Settings,
     LogOut,
     FolderUp,
-    Menu,
+    Newspaper,
 } from "lucide-react";
 
 import { motion } from "motion/react";
@@ -27,6 +27,7 @@ const sidebarItems = [
     { icon: Download, label: "My Downloads", href: "/my-downloads" },
     { icon: Bookmark, label: "Saved Notes", href: "/saved-notes" },
     { icon: Settings, label: "Settings", href: "/settings" },
+    { icon: Newspaper, label: "Notice Board", href: "/NoticeBoard" },
 ];
 
 type SideBarProps = {
