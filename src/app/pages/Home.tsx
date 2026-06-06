@@ -124,7 +124,7 @@ export default function Home() {
           }))
         );
       } catch (error: any) {
-        toast.error(error.message || "Error in fetching notes counts for courses!");
+        // toast.error(error.message || "Error in fetching notes counts for courses!");
       }
     };
 
