@@ -2,6 +2,8 @@ import { Link } from "react-router";
 import { useState, useEffect } from "react";
 import { collection, getDocs } from "firebase/firestore";
 import { db } from "../../../backend/Auth/firebase";
+import { useAuth } from "./AuthContext";
+import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import Navbar from "../components/Navbar";
@@ -97,39 +99,60 @@ const courses = [
 
 export default function Home() {
   const [coursesData, setCoursesData] = useState(courses);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchMaterialCounts = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, "notes"));
-        const counts: Record<string, number> = {
-          BCA: 0,
-          BBA: 0,
-          BCOM: 0,
-          BSC: 0,
-        };
+        // Try backend API first
+        const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/notes/counts`);
+        if (response.data && response.data.success && response.data.counts) {
+          const counts = response.data.counts;
+          setCoursesData((prevCourses) =>
+            prevCourses.map((course) => ({
+              ...course,
+              materials: counts[course.name.toUpperCase()] ?? course.materials,
+            }))
+          );
+          return;
+        }
+      } catch (apiError) {
+        console.warn("Failed to fetch counts from backend API, trying fallback...", apiError);
+      }
 
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          const courseName = (data.course || "").toUpperCase().trim();
-          if (courseName in counts) {
-            counts[courseName] += 1;
-          }
-        });
+      // Fallback: If logged in, fetch from client-side Firestore
+      if (user) {
+        try {
+          const querySnapshot = await getDocs(collection(db, "notes"));
+          const counts: Record<string, number> = {
+            BCA: 0,
+            BBA: 0,
+            BCOM: 0,
+            BSC: 0,
+          };
 
-        setCoursesData((prevCourses) =>
-          prevCourses.map((course) => ({
-            ...course,
-            materials: counts[course.name.toUpperCase()] || 0,
-          }))
-        );
-      } catch (error: any) {
-        // toast.error(error.message || "Error in fetching notes counts for courses!");
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            const courseName = (data.course || "").toUpperCase().trim();
+            if (courseName in counts) {
+              counts[courseName] += 1;
+            }
+          });
+
+          setCoursesData((prevCourses) =>
+            prevCourses.map((course) => ({
+              ...course,
+              materials: counts[course.name.toUpperCase()] ?? course.materials,
+            }))
+          );
+        } catch (fsError) {
+          console.error("Fallback client-side fetch failed:", fsError);
+        }
       }
     };
 
     fetchMaterialCounts();
-  }, []);
+  }, [user]);
 
   return (
     <div className="min-h-screen bg-background">
