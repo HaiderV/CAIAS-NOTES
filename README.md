@@ -136,7 +136,9 @@ Please open an issue in the repository or use the built-in support section avail
 
 ## 📸 Screenshort
 
-<img width="1900" height="867" alt="image" src="https://github.com/user-attachments/assets/Screenshot 2026-06-05 143943.png" />
+<img width="1900" height="867" alt="image" src="Screenshot 2026-06-05 143943.png" />
+
+<img width="1900" hegiht="867" alt="image" src="Screenshot 2026-06-05 143957.png" />
 
 ## ⭐ Support
 
