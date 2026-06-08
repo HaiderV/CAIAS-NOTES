@@ -48,20 +48,35 @@ export default function UploadNotes() {
     setIsDragging(false);
   };
 
+  const validateAndSetFile = (selectedFile: File | undefined) => {
+    if (!selectedFile) return;
+
+    // Check file extension (.pdf, .docx, .pptx, .jpg, .jpeg, .png, .webp, .txt)
+    const allowedExtensions = /(\.pdf|\.docx|\.pptx|\.jpg|\.jpeg|\.png|\.webp|\.txt)$/i;
+    if (!allowedExtensions.test(selectedFile.name)) {
+      toast.error("Unsupported file format! Please upload PDF, Word, PowerPoint, Text, or Image files.");
+      return;
+    }
+
+    // Check file size (10MB limit)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      toast.error("File is exceeding the upload criteria of 10MB limit.");
+      return;
+    }
+
+    setFile(selectedFile);
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile && droppedFile.type === "application/pdf") {
-      setFile(droppedFile);
-    }
+    const droppedFile = e.dataTransfer.files?.[0];
+    validateAndSetFile(droppedFile);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile);
-    }
+    validateAndSetFile(selectedFile);
   };
 
   const handleUpload = async (e: React.FormEvent) => {
@@ -238,7 +253,7 @@ export default function UploadNotes() {
                 <form onSubmit={handleUpload} className="space-y-6">
                   {/* File Upload */}
                   <div>
-                    <Label>Upload PDF File *</Label>
+                    <Label>Upload Study Material *</Label>
                     <div
                       className={`mt-2 border-2 border-dashed rounded-lg p-8 text-center transition-colors ${isDragging
                         ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-950/20"
@@ -277,10 +292,12 @@ export default function UploadNotes() {
                             </span>{" "}
                             or drag and drop
                           </p>
-                          <p className="text-sm text-muted-foreground">PDF files only (Max 10MB)</p>
+                          <p className="text-xs text-muted-foreground leading-normal">
+                            PDF, Word, PPTX, Text or Image formats (Max 10MB)
+                          </p>
                           <input
                             type="file"
-                            accept=".pdf"
+                            accept=".pdf,.docx,.pptx,.jpg,.jpeg,.png,.webp,.txt"
                             className="hidden"
                             id="file-upload"
                             onChange={handleFileChange}

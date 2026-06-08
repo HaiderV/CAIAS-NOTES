@@ -18,9 +18,14 @@ import {
   User,
   Search,
   BookOpen,
+  X,
+  Share,
+  Smartphone,
+  Plus,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import Footer from "../components/Footer";
+import { useIsMobile } from "../components/ui/use-mobile";
 
 const features = [
   {
@@ -100,6 +105,119 @@ const courses = [
 export default function Home() {
   const [coursesData, setCoursesData] = useState(courses);
   const { user } = useAuth();
+
+  const isMobile = useIsMobile();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showBanner, setShowBanner] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    // Detect iOS device
+    const userAgent = window.navigator.userAgent.toLowerCase();
+    const isDeviceIOS = /iphone|ipad|ipod/.test(userAgent);
+    setIsIOS(isDeviceIOS);
+
+    // Check if the application is running in standalone mode (already installed)
+    const isStandalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+
+    setIsInstalled(isStandalone);
+
+    // Check if user has previously dismissed the banner
+    const isDismissed = localStorage.getItem("caias_pwa_dismissed") === "true";
+
+    // Show the banner only on mobile devices, if not already installed, and if not dismissed
+    if (isMobile && !isStandalone && !isDismissed) {
+      if (isDeviceIOS) {
+        // iOS does not trigger beforeinstallprompt, so we can display it directly
+        setShowBanner(true);
+      } else {
+        // Check if event was captured on window level during app load
+        if ((window as any).deferredPrompt) {
+          setDeferredPrompt((window as any).deferredPrompt);
+          setShowBanner(true);
+        }
+
+        // Also listen for event in case it fires now
+        const handleBeforeInstallPrompt = (e: Event) => {
+          e.preventDefault();
+          setDeferredPrompt(e);
+          setShowBanner(true);
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => {
+          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        };
+      }
+    }
+  }, [isMobile]);
+
+  const handleInstallClick = async () => {
+    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
+    if (!promptEvent) {
+      if (isIOS) {
+        toast("To install, tap Safari Share (📤) and select 'Add to Home Screen'.", { duration: 6000 });
+      } else {
+        toast("To install, tap browser menu (⋮) and select 'Add to Home screen' or 'Install'.", { duration: 6000 });
+      }
+      setShowBanner(false);
+      return;
+    }
+
+    // Show the native browser install prompt
+    promptEvent.prompt();
+
+    // Wait for the user's choice
+    try {
+      const choiceResult = await promptEvent.userChoice;
+      if (choiceResult.outcome === 'accepted') {
+        toast.success("Thank you for installing CAIAS Notes!");
+        setShowBanner(false);
+        setIsInstalled(true);
+      }
+    } catch (err) {
+      console.error("Install prompt error:", err);
+    } finally {
+      // Clear the prompt event
+      setDeferredPrompt(null);
+      (window as any).deferredPrompt = null;
+    }
+  };
+
+  const handleDismiss = () => {
+    localStorage.setItem("caias_pwa_dismissed", "true");
+    setShowBanner(false);
+  };
+
+  const handleInlineInstallClick = async () => {
+    const promptEvent = deferredPrompt || (window as any).deferredPrompt;
+    if (!promptEvent) {
+      if (isIOS) {
+        toast("To install, tap Safari Share (📤) and select 'Add to Home Screen'.", { duration: 6000 });
+      } else {
+        toast("To install, tap browser menu (⋮) and select 'Add to Home screen' or 'Install'.", { duration: 6000 });
+      }
+      return;
+    }
+
+    promptEvent.prompt();
+
+    try {
+      const choiceResult = await promptEvent.userChoice;
+      if (choiceResult.outcome === 'accepted') {
+        toast.success("Thank you for installing CAIAS Notes!");
+        setIsInstalled(true);
+      }
+    } catch (err) {
+      console.error("Install prompt error:", err);
+    } finally {
+      setDeferredPrompt(null);
+      (window as any).deferredPrompt = null;
+    }
+  };
 
   useEffect(() => {
     const fetchMaterialCounts = async () => {
@@ -325,7 +443,7 @@ export default function Home() {
       </section>
 
       {/* Course Categories Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-blue-950/20">
+      <section className="pt-20 pb-10 sm:pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 dark:from-indigo-950/20 dark:via-purple-950/20 dark:to-blue-950/20">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-7">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">
@@ -339,7 +457,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-10">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {coursesData.map((course, index) => (
               <motion.div
                 key={index}
@@ -375,7 +493,100 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Inline PWA Install Banner for Mobile (Visible only on small screens after Course Categories Section) */}
+      {!isInstalled && (
+        <section className="block md:hidden py-10 px-4 bg-gradient-to-b from-indigo-50/30 to-background dark:from-indigo-950/10 dark:to-background animate-fade-in">
+          <div className="max-w-md mx-auto bg-gradient-to-br from-indigo-900 via-indigo-950 to-purple-950 text-white rounded-3xl p-6 shadow-xl relative overflow-hidden">
+            {/* Background decorative patterns */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/15 rounded-full blur-2xl" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/15 rounded-full blur-2xl" />
+            
+            <div className="relative flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
+                <Smartphone className="w-8 h-8 text-indigo-300 animate-pulse" />
+              </div>
+              
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold tracking-tight">CAIAS Notes Mobile App</h3>
+                <p className="text-xs text-indigo-200/90 max-w-sm leading-relaxed">
+                  Install the shortcut directly on your home screen for instant previews & offline support.
+                </p>
+              </div>
+
+              <Button
+                onClick={handleInlineInstallClick}
+                className="w-full bg-white text-indigo-950 hover:bg-white/90 font-semibold shadow-md active:scale-[0.98] transition-transform h-10 px-6 rounded-xl text-xs"
+              >
+                Install App
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <Footer />
+
+      {/* PWA Install Banner */}
+      <AnimatePresence>
+        {showBanner && (
+          <motion.div
+            initial={{ opacity: 0, y: 100, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.95 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 select-none"
+          >
+            {/* Header / Info Section */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex gap-3 items-center">
+                <img
+                  src="/logo.png"
+                  alt="CAIAS Notes Logo"
+                  className="w-12 h-12 rounded-xl object-cover shadow-md border border-gray-100 dark:border-gray-800"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = "/src/assets/logo-cn.png";
+                  }}
+                />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-955 dark:text-gray-100 text-sm leading-tight">
+                    Install CAIAS Notes
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-normal">
+                    Add shortcut to your Home Screen for faster access & notes preview.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleDismiss}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Dismiss install banner"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Actions Section */}
+            <div className="flex gap-2 justify-end items-center mt-1 border-t border-gray-150 dark:border-gray-800 pt-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleDismiss}
+                className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 h-8"
+              >
+                Not Now
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleInstallClick}
+                className="text-xs bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:opacity-90 text-white font-medium shadow-md transition-all h-8 px-4"
+              >
+                Install App
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

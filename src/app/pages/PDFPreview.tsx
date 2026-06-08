@@ -15,6 +15,7 @@ import {
   FileText,
   Calendar,
   Star,
+  Share2,
 } from "lucide-react";
 import { Document, Page, pdfjs } from "react-pdf";
 
@@ -169,6 +170,28 @@ export default function PDFPreview() {
       toast.success("Downloaded Successfully!")
     } catch (error: any) {
       toast.error(error.message || "Failed to Download")
+    }
+  };
+
+  // Share notes function
+  const handleShare = async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${note?.title || "Study Notes"} - CAIAS Notes`,
+          text: `📚 Check out "${note?.title || "these notes"}" on CAIAS Notes`,
+          url,
+        });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast.success("Link copied to clipboard!");
+      }
+    } catch (error: any) {
+      if (error.name !== 'AbortError') {
+        console.error("Share failed:", error);
+        toast.error("Failed to share link.");
+      }
     }
   };
 
@@ -376,6 +399,16 @@ export default function PDFPreview() {
             </Button>
 
             <div className="flex items-center gap-2 max-w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 px-3 text-xs shrink-0"
+                onClick={handleShare}
+              >
+                <Share2 className="w-3.5 h-3.5 mr-1" />
+                <span>Share</span>
+              </Button>
+
               <Button
                 variant={isSaved ? "default" : "outline"}
                 size="sm"
