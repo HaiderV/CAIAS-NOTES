@@ -99,48 +99,65 @@ export default function PDFPreview() {
 
   //download Count function
   const handleDownloadCount = async () => {
-    if (!user || !note?.id) return false;
+    if (!note?.id) return false;
 
     try {
       let incremented = false;
+      const noteRef = doc(db, "notes", note.id);
 
-      await runTransaction(db, async (transaction) => {
-        const noteRef = doc(db, "notes", note.id);
+      if (user) {
         const downloadRef = doc(db, "notes", note.id, "downloads", user.uid);
         const userRef = doc(db, "users", user.uid);
 
-        const existingDownload = await transaction.get(downloadRef);
+        await runTransaction(db, async (transaction) => {
+          const existingDownload = await transaction.get(downloadRef);
 
-        if (existingDownload.exists()) {
-          return;
-        }
+          if (existingDownload.exists()) {
+            return;
+          }
 
-        const noteDoc = await transaction.get(noteRef);
+          const noteDoc = await transaction.get(noteRef);
 
-        if (!noteDoc.exists()) {
-          throw new Error("Note not found.");
-        }
+          if (!noteDoc.exists()) {
+            throw new Error("Note not found.");
+          }
 
-        transaction.update(noteRef, {
-          downloadCount:
-            (noteDoc.data().downloadCount || 0) + 1,
+          transaction.update(noteRef, {
+            downloadCount:
+              (noteDoc.data().downloadCount || 0) + 1,
+          });
+
+          transaction.set(downloadRef, {
+            userId: user.uid,
+            downloadedAt: serverTimestamp(),
+          });
+
+          transaction.set(
+            userRef,
+            {
+              downloadedNotes: arrayUnion(note.id),
+            },
+            { merge: true }
+          );
+
+          incremented = true;
         });
+      } else {
+        await runTransaction(db, async (transaction) => {
+          const noteDoc = await transaction.get(noteRef);
 
-        transaction.set(downloadRef, {
-          userId: user.uid,
-          downloadedAt: serverTimestamp(),
+          if (!noteDoc.exists()) {
+            throw new Error("Note not found.");
+          }
+
+          transaction.update(noteRef, {
+            downloadCount:
+              (noteDoc.data().downloadCount || 0) + 1,
+          });
+
+          incremented = true;
         });
-
-        transaction.set(
-          userRef,
-          {
-            downloadedNotes: arrayUnion(note.id),
-          },
-          { merge: true }
-        );
-
-        incremented = true;
-      });
+      }
 
       if (incremented) {
         setNote((prev: any) => ({
@@ -206,8 +223,9 @@ export default function PDFPreview() {
 
   useEffect(() => {
     const checkRating = async () => {
-      if (!user || !note?.id) {
-        setCanRate(false);
+      if (!note?.id) return;
+      if (!user) {
+        setCanRate(true);
         return;
       }
       // Only allow rating section for users other than the uploader
@@ -553,52 +571,60 @@ export default function PDFPreview() {
               <Card className="border shadow-sm w-full">
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 w-full">
-
-                    <div className="w-full min-w-0">
-                      <h3 className="text-base sm:text-lg font-semibold text-foreground">Rate this Note</h3>
-                      <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                        Help other students by sharing your feedback.
-                      </p>
-
-                      <div className="mt-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {[1, 2, 3, 4, 5].map((star) => (
-                            <button
-                              key={star}
-                              onClick={() => !hasRated && setUserRating(star)}
-                              disabled={hasRated}
-                              type="button"
-                              className={`transition-transform duration-100 p-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md ${hasRated ? "cursor-not-allowed opacity-50" : "hover:scale-110 active:scale-95"
-                                }`}
-                            >
-                              <Star
-                                className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 transition-colors ${star <= userRating
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-muted-foreground"
-                                  }`}
-                              />
-                            </button>
-                          ))}
-                        </div>
-
-                        <p className="text-xs sm:text-sm text-muted-foreground mt-2">
-                          {hasRated
-                            ? `You already rated this note ${userRating}/5 ⭐`
-                            : "Select a rating and submit"}
+                    {!user ? (
+                      <div className="w-full text-center py-2">
+                        <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+                          Log in to rate
                         </p>
                       </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="w-full min-w-0">
+                          <h3 className="text-base sm:text-lg font-semibold text-foreground">Rate this Note</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                            Help other students by sharing your feedback.
+                          </p>
 
-                    <div className="w-full md:w-auto shrink-0">
-                      <Button
-                        onClick={handleSubmitRating}
-                        disabled={!userRating || hasRated}
-                        className="w-full md:w-auto"
-                      >
-                        {hasRated ? "Rating Submitted" : "Submit Rating"}
-                      </Button>
-                    </div>
+                          <div className="mt-4">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  onClick={() => !hasRated && setUserRating(star)}
+                                  disabled={hasRated}
+                                  type="button"
+                                  className={`transition-transform duration-100 p-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md ${hasRated ? "cursor-not-allowed opacity-50" : "hover:scale-110 active:scale-95"
+                                    }`}
+                                >
+                                  <Star
+                                    className={`w-7 h-7 sm:w-8 sm:h-8 shrink-0 transition-colors ${star <= userRating
+                                      ? "fill-yellow-400 text-yellow-400"
+                                      : "text-muted-foreground"
+                                      }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
 
+                            <p className="text-xs sm:text-sm text-muted-foreground mt-2">
+                              {hasRated
+                                ? `You already rated this note ${userRating}/5 ⭐`
+                                : "Select a rating and submit"}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-full md:w-auto shrink-0">
+                          <Button
+                            onClick={handleSubmitRating}
+                            disabled={!userRating || hasRated}
+                            className="w-full md:w-auto"
+                          >
+                            {hasRated ? "Rating Submitted" : "Submit Rating"}
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CardContent>
               </Card>

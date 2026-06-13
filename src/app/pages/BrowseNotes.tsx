@@ -126,7 +126,8 @@ export default function BrowseNotes() {
     const unsubscribe = onAuthStateChanged(
       auth,
       (user) => {
-        if (!user) {
+        const isMobile = window.innerWidth < 768;
+        if (!user && !isMobile) {
           navigate("/login");
         } else {
           setLoading(false);
@@ -353,52 +354,68 @@ export default function BrowseNotes() {
 
   //download Count function
   const handleDownloadCount = async (noteId: string) => {
-    if (!user || !noteId) return false;
+    if (!noteId) return false;
 
     try {
       const noteRef = doc(db, "notes", noteId);
-      const downloadRef = doc(db, "notes", noteId, "downloads", user.uid);
-      const userRef = doc(db, "users", user.uid);
-
       let incremented = false;
 
-      await runTransaction(db, async (transaction) => {
-        const existingDownload = await transaction.get(downloadRef);
+      if (user) {
+        const downloadRef = doc(db, "notes", noteId, "downloads", user.uid);
+        const userRef = doc(db, "users", user.uid);
 
-        if (existingDownload.exists()) {
-          return;
-        }
+        await runTransaction(db, async (transaction) => {
+          const existingDownload = await transaction.get(downloadRef);
 
-        const noteDoc = await transaction.get(noteRef);
+          if (existingDownload.exists()) {
+            return;
+          }
 
-        if (!noteDoc.exists()) {
-          throw new Error("Note not found");
-        }
+          const noteDoc = await transaction.get(noteRef);
 
-        transaction.update(noteRef, {
-          downloadCount: (noteDoc.data().downloadCount || 0) + 1,
+          if (!noteDoc.exists()) {
+            throw new Error("Note not found");
+          }
+
+          transaction.update(noteRef, {
+            downloadCount: (noteDoc.data().downloadCount || 0) + 1,
+          });
+
+          transaction.set(downloadRef, {
+            userId: user.uid,
+            downloadedAt: serverTimestamp(),
+          });
+
+          transaction.set(
+            userRef,
+            {
+              downloadedNotes: arrayUnion(noteId),
+            },
+            { merge: true }
+          );
+
+          incremented = true;
         });
+      } else {
+        await runTransaction(db, async (transaction) => {
+          const noteDoc = await transaction.get(noteRef);
 
-        transaction.set(downloadRef, {
-          userId: user.uid,
-          downloadedAt: serverTimestamp(),
+          if (!noteDoc.exists()) {
+            throw new Error("Note not found");
+          }
+
+          transaction.update(noteRef, {
+            downloadCount: (noteDoc.data().downloadCount || 0) + 1,
+          });
+
+          incremented = true;
         });
-
-        transaction.set(
-          userRef,
-          {
-            downloadedNotes: arrayUnion(noteId),
-          },
-          { merge: true }
-        );
-
-        incremented = true;
-      });
+      }
 
       if (incremented) {
         setAllNotes((prev: any) =>
           prev.map((n: any) =>
-            n.id === noteId
+            n.noteId === noteId
               ? { ...n, downloadCount: (n.downloadCount || 0) + 1 }
               : n
           )

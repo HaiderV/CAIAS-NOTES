@@ -239,6 +239,13 @@ export default function Navbar() {
                 Home
               </Link>
               <Link
+                to="/browse"
+                className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Browse Notes
+              </Link>
+              <Link
                 to="/dashboard"
                 className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
