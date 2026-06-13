@@ -75,28 +75,28 @@ const courses = [
     name: "BCA",
     fullName: "Bachelor of Computer Applications",
     semesters: 6,
-    materials: 0,
+    materials: 234,
     color: "from-blue-500 to-cyan-500",
   },
   {
     name: "BBA",
     fullName: "Bachelor of Business Administration",
     semesters: 6,
-    materials: 0,
+    materials: 189,
     color: "from-purple-500 to-pink-500",
   },
   {
     name: "BCOM",
     fullName: "Bachelor of Commerce",
     semesters: 6,
-    materials: 0,
+    materials: 312,
     color: "from-orange-500 to-red-500",
   },
   {
     name: "BSC",
     fullName: "Bachelor of Science",
     semesters: 6,
-    materials: 0,
+    materials: 276,
     color: "from-green-500 to-emerald-500",
   },
 ];
@@ -482,7 +482,7 @@ export default function Home() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Materials</span>
-                          <span className="font-semibold">{course.materials ?? 0}</span>
+                          <span className="font-semibold">{course.materials}</span>
                         </div>
                       </div>
                     </CardContent>

@@ -65,7 +65,7 @@ export const router = createBrowserRouter([
   {
     path: "/browse",
     element: (
-      <ProtectedRoute allowMobileGuest>
+      <ProtectedRoute>
         <BrowseNotes />
       </ProtectedRoute>
     ),
@@ -74,7 +74,7 @@ export const router = createBrowserRouter([
   {
     path: "/pdf-preview/:noteId",
     element: (
-      <ProtectedRoute allowMobileGuest>
+      <ProtectedRoute>
         <PDFPreview />
       </ProtectedRoute>
     ),
