@@ -22,6 +22,7 @@ import {
   Share,
   Smartphone,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import Footer from "../components/Footer";
@@ -75,28 +76,28 @@ const courses = [
     name: "BCA",
     fullName: "Bachelor of Computer Applications",
     semesters: 6,
-    materials: 234,
+    materials: 0,
     color: "from-blue-500 to-cyan-500",
   },
   {
     name: "BBA",
     fullName: "Bachelor of Business Administration",
     semesters: 6,
-    materials: 189,
+    materials: 0,
     color: "from-purple-500 to-pink-500",
   },
   {
     name: "BCOM",
     fullName: "Bachelor of Commerce",
     semesters: 6,
-    materials: 312,
+    materials: 0,
     color: "from-orange-500 to-red-500",
   },
   {
     name: "BSC",
     fullName: "Bachelor of Science",
     semesters: 6,
-    materials: 276,
+    materials: 0,
     color: "from-green-500 to-emerald-500",
   },
 ];
@@ -104,6 +105,7 @@ const courses = [
 
 export default function Home() {
   const [coursesData, setCoursesData] = useState(courses);
+  const [loadingCounts, setLoadingCounts] = useState(true);
   const { user } = useAuth();
 
   const isMobile = useIsMobile();
@@ -501,12 +503,12 @@ export default function Home() {
             {/* Background decorative patterns */}
             <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/15 rounded-full blur-2xl" />
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-indigo-500/15 rounded-full blur-2xl" />
-            
+
             <div className="relative flex flex-col items-center text-center gap-4">
               <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-inner">
                 <Smartphone className="w-8 h-8 text-indigo-300 animate-pulse" />
               </div>
-              
+
               <div className="space-y-1.5">
                 <h3 className="text-xl font-bold tracking-tight">CAIAS Notes Mobile App</h3>
                 <p className="text-xs text-indigo-200/90 max-w-sm leading-relaxed">
