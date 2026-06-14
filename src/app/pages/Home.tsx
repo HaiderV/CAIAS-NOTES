@@ -234,6 +234,7 @@ export default function Home() {
               materials: counts[course.name.toUpperCase()] ?? course.materials,
             }))
           );
+          setLoadingCounts(false);
           return;
         }
       } catch (apiError) {
@@ -269,6 +270,7 @@ export default function Home() {
           console.error("Fallback client-side fetch failed:", fsError);
         }
       }
+      setLoadingCounts(false);
     };
 
     fetchMaterialCounts();
@@ -484,7 +486,9 @@ export default function Home() {
                       <div className="space-y-2">
                         <div className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground">Materials</span>
-                          <span className="font-semibold">{course.materials}</span>
+                          <span className="font-semibold">
+                            {loadingCounts ? "loading.." : course.materials}
+                          </span>
                         </div>
                       </div>
                     </CardContent>
