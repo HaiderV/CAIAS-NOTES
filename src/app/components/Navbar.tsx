@@ -80,6 +80,9 @@ export default function Navbar() {
             <Link to="/" className="text-foreground/70 hover:text-foreground transition-colors">
               Home
             </Link>
+            <Link to="/browse" className="text-foreground/70 hover:text-foreground transition-colors">
+              Browse
+            </Link>
             <Link to="/dashboard" className="text-foreground/70 hover:text-foreground transition-colors">
               Dashboard
             </Link>
@@ -98,7 +101,7 @@ export default function Navbar() {
               )}
             </Button>
 
-            {currentUser ? (
+            {currentUser && !currentUser.isAnonymous ? (
               <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                 <Link to={`/profile/${user?.uid}`} className="shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full">
                   {userData?.avatarUrl || currentUser.photoURL ? (
@@ -239,6 +242,13 @@ export default function Navbar() {
                 Home
               </Link>
               <Link
+                to="/browse"
+                className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Browse
+              </Link>
+              <Link
                 to="/dashboard"
                 className="block py-2 text-foreground/70 hover:text-foreground transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
@@ -247,7 +257,7 @@ export default function Navbar() {
               </Link>
 
               <div className="pt-4 border-t border-border">
-                {currentUser ? (
+                {currentUser && !currentUser.isAnonymous ? (
                   <Link
                     to={`/profile/${currentUser?.uid}`}
                     className="flex items-center space-x-3 p-2 rounded-lg hover:bg-accent"

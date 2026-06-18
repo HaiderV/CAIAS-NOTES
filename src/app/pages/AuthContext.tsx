@@ -4,7 +4,7 @@ import {
     useEffect,
     useState,
 } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import { User, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 import { auth } from "../../../backend/Auth/firebase";
 
 interface AuthContextType {

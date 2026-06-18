@@ -64,20 +64,12 @@ export const router = createBrowserRouter([
   },
   {
     path: "/browse",
-    element: (
-      <ProtectedRoute>
-        <BrowseNotes />
-      </ProtectedRoute>
-    ),
+    Component: BrowseNotes,
     errorElement: <ErrorPage />,
   },
   {
     path: "/pdf-preview/:noteId",
-    element: (
-      <ProtectedRoute>
-        <PDFPreview />
-      </ProtectedRoute>
-    ),
+    Component: PDFPreview,
     errorElement: <ErrorPage />,
   },
   {

@@ -8,8 +8,11 @@ import { Badge } from "../components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import DashNav from "../components/DashNav";
 import SideBar from "../components/SideBar";
+import Navbar from "../components/Navbar";
+import { useAuth } from "./AuthContext";
 import { collection, getDocs, doc, getDoc, runTransaction, serverTimestamp, arrayUnion } from "firebase/firestore";
 import { db } from "../../../backend/Auth/firebase";
+import axios from "axios";
 import {
   Search,
   FileText,
@@ -29,6 +32,8 @@ import { AnimatePresence } from "motion/react";
 import { toast } from 'sonner';
 
 export default function BrowseNotes() {
+  const { user, loading: authLoading } = useAuth();
+  const isGuest = !user || user.isAnonymous;
   const [searchParams] = useSearchParams();
   const selectedCourseFromUrl = searchParams.get("course") || "all";
 
@@ -121,24 +126,10 @@ export default function BrowseNotes() {
     });
   };
 
-  //Authentication Effect
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (user) => {
-        if (!user) {
-          navigate("/login");
-        } else {
-          setLoading(false);
-        }
-      }
-    );
-
-    return () => unsubscribe();
-  }, [navigate]);
-
   //Load Notes
   useEffect(() => {
+    if (authLoading) return;
+
     const loadNotes = async () => {
       try {
         setLoading(true);
@@ -176,6 +167,7 @@ export default function BrowseNotes() {
 
         setAllNotes(notes);
       } catch (error: any) {
+        console.error("loadNotes error caught:", error);
         toast.error(error.message || "Failed to load notes");
       } finally {
         setLoading(false);
@@ -183,7 +175,7 @@ export default function BrowseNotes() {
     };
 
     loadNotes();
-  }, []);
+  }, [authLoading, user]);
 
   //Filter Effect
   useEffect(() => {
@@ -334,10 +326,17 @@ export default function BrowseNotes() {
       const usersMap: Record<string, string> = {};
 
       for (const uid of uniqueIds) {
-        const userSnap = await getDoc(doc(db, "users", uid));
+        try {
+          const userSnap = await getDoc(doc(db, "users", uid));
 
-        if (userSnap.exists()) {
-          usersMap[uid] = userSnap.data().firstName;
+          if (userSnap.exists()) {
+            usersMap[uid] = userSnap.data().firstName;
+          } else {
+            usersMap[uid] = "Student";
+          }
+        } catch (err: any) {
+          console.warn("Failed to fetch uploader name (likely due to security rules):", err.message);
+          usersMap[uid] = "Student";
         }
       }
 
@@ -349,56 +348,22 @@ export default function BrowseNotes() {
     }
   }, [filteredNotes]);
 
-  const user = auth.currentUser;
-
   //download Count function
   const handleDownloadCount = async (noteId: string) => {
-    if (!user || !noteId) return false;
+    if (!noteId) return false;
 
     try {
-      const noteRef = doc(db, "notes", noteId);
-      const downloadRef = doc(db, "notes", noteId, "downloads", user.uid);
-      const userRef = doc(db, "users", user.uid);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/notes/${noteId}/download`,
+        { userId: user ? user.uid : null }
+      );
 
-      let incremented = false;
-
-      await runTransaction(db, async (transaction) => {
-        const existingDownload = await transaction.get(downloadRef);
-
-        if (existingDownload.exists()) {
-          return;
-        }
-
-        const noteDoc = await transaction.get(noteRef);
-
-        if (!noteDoc.exists()) {
-          throw new Error("Note not found");
-        }
-
-        transaction.update(noteRef, {
-          downloadCount: (noteDoc.data().downloadCount || 0) + 1,
-        });
-
-        transaction.set(downloadRef, {
-          userId: user.uid,
-          downloadedAt: serverTimestamp(),
-        });
-
-        transaction.set(
-          userRef,
-          {
-            downloadedNotes: arrayUnion(noteId),
-          },
-          { merge: true }
-        );
-
-        incremented = true;
-      });
+      const incremented = response.data && response.data.success;
 
       if (incremented) {
         setAllNotes((prev: any) =>
           prev.map((n: any) =>
-            n.id === noteId
+            n.noteId === noteId || n.id === noteId
               ? { ...n, downloadCount: (n.downloadCount || 0) + 1 }
               : n
           )
@@ -407,7 +372,7 @@ export default function BrowseNotes() {
 
       return incremented;
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong!");
+      console.error("Failed to update download count via API:", error);
       return false;
     }
   };
@@ -440,7 +405,7 @@ export default function BrowseNotes() {
 
 
   // loading function
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -453,10 +418,10 @@ export default function BrowseNotes() {
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden pb-20">
-      <div className="min-h-screen bg-background lg:flex">
+      <div className={`min-h-screen bg-background ${!isGuest ? "lg:flex" : ""}`}>
         {/* Sidebar */}
         <AnimatePresence>
-          {sidebarOpen && (
+          {user && !isGuest && sidebarOpen && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -467,33 +432,39 @@ export default function BrowseNotes() {
           )}
         </AnimatePresence>
 
-        <SideBar
-          sidebarOpen={sidebarOpen}
-          setSidebarOpen={setSidebarOpen}
-        />
+        {!isGuest && (
+          <SideBar
+            sidebarOpen={sidebarOpen}
+            setSidebarOpen={setSidebarOpen}
+          />
+        )}
 
         {/* Main Content */}
         <div className="flex-1 min-h-screen">
           {/* Header */}
-          <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border">
-            <div className="flex items-center justify-between px-4 lg:px-8 h-16">
-              <div className="flex items-center gap-4 flex-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="lg:hidden"
-                  onClick={() => setSidebarOpen(true)}
-                >
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </div>
+          {!isGuest ? (
+            <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border">
+              <div className="flex items-center justify-between px-4 lg:px-8 h-16">
+                <div className="flex items-center gap-4 flex-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden"
+                    onClick={() => setSidebarOpen(true)}
+                  >
+                    <Menu className="w-5 h-5" />
+                  </Button>
+                </div>
 
-              <DashNav />
-            </div>
-          </header>
+                <DashNav />
+              </div>
+            </header>
+          ) : (
+            <Navbar />
+          )}
 
           {/* Content */}
-          <main className="p-4 lg:p-8">
+          <main className={`p-4 lg:p-8 ${isGuest ? "pt-20 lg:pt-24" : ""}`}>
             <div className="max-w-7xl mx-auto">
 
               {/* Header */}

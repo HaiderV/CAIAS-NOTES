@@ -8,6 +8,8 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { auth, db } from "../../../backend/Auth/firebase";
+import { useAuth } from "./AuthContext";
+import axios from "axios";
 import {
   ArrowLeft,
   Download,
@@ -22,7 +24,8 @@ import { Document, Page, pdfjs } from "react-pdf";
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export default function PDFPreview() {
-
+  const { user, loading: authLoading } = useAuth();
+  const isGuest = !user || user.isAnonymous;
   const navigate = useNavigate();
   const { noteId } = useParams();
 
@@ -31,6 +34,8 @@ export default function PDFPreview() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+
     const fetchNote = async () => {
       if (!noteId) return;
 
@@ -54,7 +59,7 @@ export default function PDFPreview() {
     };
 
     fetchNote();
-  }, [noteId]);
+  }, [noteId, authLoading]);
 
   // Uploader's Data
   const [uploader, setUploader] = useState<any>(null);
@@ -75,7 +80,8 @@ export default function PDFPreview() {
           });
         }
       } catch (err: any) {
-        toast.error(err.message || "Failed to load uploader info.");
+        console.warn("Failed to load uploader info (likely due to security rules):", err.message);
+        setUploader({ firstName: "Student", lastName: "" });
       } finally {
         setLoading(false);
       }
@@ -99,48 +105,15 @@ export default function PDFPreview() {
 
   //download Count function
   const handleDownloadCount = async () => {
-    if (!user || !note?.id) return false;
+    if (!note?.id) return false;
 
     try {
-      let incremented = false;
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/notes/${note.id}/download`,
+        { userId: user ? user.uid : null }
+      );
 
-      await runTransaction(db, async (transaction) => {
-        const noteRef = doc(db, "notes", note.id);
-        const downloadRef = doc(db, "notes", note.id, "downloads", user.uid);
-        const userRef = doc(db, "users", user.uid);
-
-        const existingDownload = await transaction.get(downloadRef);
-
-        if (existingDownload.exists()) {
-          return;
-        }
-
-        const noteDoc = await transaction.get(noteRef);
-
-        if (!noteDoc.exists()) {
-          throw new Error("Note not found.");
-        }
-
-        transaction.update(noteRef, {
-          downloadCount:
-            (noteDoc.data().downloadCount || 0) + 1,
-        });
-
-        transaction.set(downloadRef, {
-          userId: user.uid,
-          downloadedAt: serverTimestamp(),
-        });
-
-        transaction.set(
-          userRef,
-          {
-            downloadedNotes: arrayUnion(note.id),
-          },
-          { merge: true }
-        );
-
-        incremented = true;
-      });
+      const incremented = response.data && response.data.success;
 
       if (incremented) {
         setNote((prev: any) => ({
@@ -151,7 +124,7 @@ export default function PDFPreview() {
 
       return incremented;
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong")
+      console.error("Failed to update download count via API:", error);
       return false;
     }
   };
@@ -198,34 +171,31 @@ export default function PDFPreview() {
   //Rating 
   const [userRating, setUserRating] = useState(0);
 
-  const user = auth.currentUser;
-
   const [hasRated, setHasRated] = useState(false);
 
   const [canRate, setCanRate] = useState<any>(true);
 
   useEffect(() => {
     const checkRating = async () => {
-      if (!user || !note?.id) {
-        setCanRate(false);
+      if (!note?.id) return;
+      if (isGuest) {
+        setCanRate(true);
+        setHasRated(false);
         return;
       }
       // Only allow rating section for users other than the uploader
       setCanRate(user.uid !== note.uploadedBy);
 
-      const ratingRef = doc(
-        db,
-        "notes",
-        note.id,
-        "ratings",
-        user.uid
-      );
-
-      const ratingSnap = await getDoc(ratingRef);
-
-      if (ratingSnap.exists()) {
-        setHasRated(true);
-        setUserRating(ratingSnap.data().rating);
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/api/notes/${note.id}/ratings/${user.uid}`
+        );
+        if (response.data && response.data.success && response.data.hasRated) {
+          setHasRated(true);
+          setUserRating(response.data.rating);
+        }
+      } catch (err) {
+        console.error("Failed to check rating status via API:", err);
       }
     };
 
@@ -233,69 +203,49 @@ export default function PDFPreview() {
   }, [user, note]);
 
   const handleSubmitRating = async () => {
-    if (!user) return;
+    if (isGuest) {
+      toast.error("Please login to rate this note");
+      navigate("/login");
+      return;
+    }
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const noteRef = doc(db, "notes", note.id);
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/api/notes/${note.id}/rate`,
+        { userId: user.uid, rating: userRating }
+      );
 
-        const ratingRef = doc(
-          db,
-          "notes",
-          note.id,
-          "ratings",
-          user.uid
-        );
+      if (response.data && response.data.success) {
+        setHasRated(true);
+        toast.success("Rating Submitted Successfully!");
 
-        const existingRating = await transaction.get(ratingRef);
+        setNote((prev: any) => {
+          if (!prev) return prev;
 
-        if (existingRating.exists()) {
-          throw new Error("You have already rated this note.");
-        }
-
-        const noteDoc = await transaction.get(noteRef);
-
-        if (!noteDoc.exists()) {
-          throw new Error("Note not found.");
-        }
-
-        transaction.update(noteRef, {
-          ratingSum:
-            (noteDoc.data().ratingSum || 0) + userRating,
-          ratingCount:
-            (noteDoc.data().ratingCount || 0) + 1,
+          return {
+            ...prev,
+            ratingSum: (prev.ratingSum || 0) + userRating,
+            ratingCount: (prev.ratingCount || 0) + 1,
+          };
         });
-
-        transaction.set(ratingRef, {
-          rating: userRating,
-          userId: user.uid,
-          ratedAt: serverTimestamp(),
-        });
-      });
-
-      setHasRated(true);
-
-      toast.success("Rating Submitted Successfully!");
-
-      setNote((prev: any) => {
-        if (!prev) return prev;
-
-        return {
-          ...prev,
-          ratingSum: (prev.ratingSum || 0) + userRating,
-          ratingCount: (prev.ratingCount || 0) + 1,
-        };
-      });
-
-    } catch (error) {
-      toast.error("Failed something went wrong");
+      } else {
+        throw new Error(response.data.message || "Failed to submit rating.");
+      }
+    } catch (error: any) {
+      console.error("Failed to submit rating via API:", error);
+      toast.error(error.response?.data?.message || error.message || "Failed to submit rating");
     }
   };
 
   // Save Notes
   const [isSaved, setIsSaved] = useState(false);
   const handleToggleSave = async () => {
-    if (!user || !note?.id) return;
+    if (isGuest) {
+      toast.error("Please login to save this note");
+      navigate("/login");
+      return;
+    }
+    if (!note?.id) return;
 
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
@@ -327,9 +277,10 @@ export default function PDFPreview() {
   };
 
   useEffect(() => {
+    if (authLoading) return;
 
     const checkSavedStatus = async () => {
-      if (!user || !note?.id) return;
+      if (isGuest || !note?.id) return;
 
       const userRef = doc(db, "users", user.uid);
       const userSnap = await getDoc(userRef);
@@ -341,7 +292,7 @@ export default function PDFPreview() {
     };
 
     checkSavedStatus();
-  }, [user, note?.id]);
+  }, [user, note?.id, authLoading]);
 
   //pdf preview
   const containerRef = useRef<HTMLDivElement>(null);
@@ -370,7 +321,7 @@ export default function PDFPreview() {
     return () => resizeObserver.disconnect();
   }, []);
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -565,7 +516,16 @@ export default function PDFPreview() {
                           {[1, 2, 3, 4, 5].map((star) => (
                             <button
                               key={star}
-                              onClick={() => !hasRated && setUserRating(star)}
+                              onClick={() => {
+                                if (isGuest) {
+                                  toast.error("Please login to rate this note");
+                                  navigate("/login");
+                                  return;
+                                }
+                                if (!hasRated) {
+                                  setUserRating(star);
+                                }
+                              }}
                               disabled={hasRated}
                               type="button"
                               className={`transition-transform duration-100 p-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded-md ${hasRated ? "cursor-not-allowed opacity-50" : "hover:scale-110 active:scale-95"
