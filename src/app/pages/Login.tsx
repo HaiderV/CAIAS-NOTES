@@ -122,7 +122,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background">
       <div className="absolute top-6 left-6 z-20">
-        <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-sm" onClick={() => navigate(-1)}>
+        <Button variant="ghost" size="sm" className="px-2 sm:px-3 text-sm" onClick={() => navigate("/")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Button>

@@ -45,8 +45,8 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
+      navigate("/", { replace: true });
       await signOut(auth);
-      navigate("/login");
       toast.success("Logged Out successfully!")
     } catch (err: any) {
       toast.error(err.message || "Error while logging out?")

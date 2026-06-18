@@ -44,11 +44,12 @@ export default function DashNav() {
                     }
                 }
             } else {
-                navigate("/login");
+                setCurrentUser(null);
+                setUserData(null);
             }
         });
         return () => unsubscribe();
-    }, [navigate]);
+    }, []);
 
     const getInitials = (name: string) => {
         if (!name) return "JD";
@@ -65,9 +66,9 @@ export default function DashNav() {
     const handleConfirmLogout = async () => {
         try {
             setIsLoggingOut(true);
+            navigate("/", { replace: true });
             await signOut(auth);
             setShowLogoutConfirm(false);
-            navigate("/login");
             toast.success("Logged Out successfully!")
         } catch (err: any) {
             toast.error(err.message || "Something went wrong");

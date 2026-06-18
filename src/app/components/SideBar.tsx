@@ -46,10 +46,10 @@ export default function SideBar({
     const handleConfirmLogout = async () => {
         try {
             setIsLoggingOut(true);
+            navigate("/", { replace: true });
             await signOut(auth);
             setShowLogoutConfirm(false);
             setSidebarOpen(false);
-            navigate("/login");
             toast.success("Logged Out successfully!")
         } catch (err: any) {
             toast.error(err.message || "Error while logging out?");
