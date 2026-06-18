@@ -327,10 +327,10 @@ export default function BrowseNotes() {
 
       for (const uid of uniqueIds) {
         try {
-          const userSnap = await getDoc(doc(db, "users", uid));
+          const userSnap = await getDoc(doc(db, "publicProfiles", uid));
 
           if (userSnap.exists()) {
-            usersMap[uid] = userSnap.data().firstName;
+            usersMap[uid] = userSnap.data().firstName || "Student";
           } else {
             usersMap[uid] = "Student";
           }

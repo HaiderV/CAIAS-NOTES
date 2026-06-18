@@ -103,6 +103,15 @@ export default function Login() {
             downloadsCount: 0,
             reputationRating: 5.0
           });
+
+          await setDoc(doc(db, "publicProfiles", user.uid), {
+            firstName,
+            lastName,
+            avatarUrl: user.profilePic || "",
+            course: "BCA",
+            semester: 1,
+            reputationRating: 5.0,
+          });
           toast.success("Welcome! Please complete your profile details.");
         } else {
           toast.success(`Welcome, ${user.name}!`);

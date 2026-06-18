@@ -3,8 +3,9 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import Footer from "../components/Footer";
 import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "../../../backend/Auth/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { auth, db } from "../../../backend/Auth/firebase";
 import { useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -29,16 +30,32 @@ export default function Profile() {
   const [savedCount, setSavedCount] = useState<any>(0);
   const [totalRatingSum, setTotalRatingSum] = useState(0);
   const [totalRatingCount, setTotalRatingCount] = useState(0);
+  const [isCurrentUser, setIsCurrentUser] = useState(false);
 
   const { profileId } = useParams();
 
-  //fetch current profile
+  const defaultAvatar = "https://api.dicebear.com/7.x/initials/svg?seed=Student";
+
+  // Auth State Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Fetch Profile Details
   useEffect(() => {
     const fetchProfile = async () => {
       if (!profileId) return;
 
       try {
-        const userDocRef = doc(db, "users", profileId);
+        const activeUser = auth.currentUser;
+        const isCurrent = activeUser?.uid === profileId;
+        setIsCurrentUser(isCurrent);
+
+        const collectionName = isCurrent ? "users" : "publicProfiles";
+        const userDocRef = doc(db, collectionName, profileId);
         const userDoc = await getDoc(userDocRef);
 
         if (userDoc.exists()) {
@@ -47,36 +64,47 @@ export default function Profile() {
             id: userDoc.id,
             ...profileData,
           });
-          setUploadCount(profileData?.uploadedNotes?.length || 0);
-          setSavedCount(profileData?.savedNotes?.length || 0);
 
-          const uploadedNotes = profileData?.uploadedNotes || [];
+          // Fetch upload count dynamically from the notes collection
+          const notesQuery = query(
+            collection(db, "notes"),
+            where("uploadedBy", "==", profileId)
+          );
+          const notesSnap = await getDocs(notesQuery);
+          setUploadCount(notesSnap.size);
 
+          if (isCurrent) {
+            setSavedCount(profileData?.savedNotes?.length || 0);
+          } else {
+            setSavedCount(0);
+          }
+
+          // Compute ratings from actual uploaded notes
           let ratingSum = 0;
           let ratingCount = 0;
-
-          const notePromises = uploadedNotes.map(async (noteId: string) => {
-            console.log("Note ID:", noteId);
-
-            const noteSnap = await getDoc(doc(db, "notes", noteId));
-
-            console.log("Exists:", noteSnap.exists());
-
-            if (noteSnap.exists()) {
-              console.log("Data:", noteSnap.data());
-
-              ratingSum += noteSnap.data().ratingSum || 0;
-              ratingCount += noteSnap.data().ratingCount || 0;
-            }
+          notesSnap.docs.forEach((noteDoc) => {
+            const data = noteDoc.data();
+            ratingSum += data.ratingSum || 0;
+            ratingCount += data.ratingCount || 0;
           });
-
-          await Promise.all(notePromises);
 
           setTotalRatingSum(ratingSum);
           setTotalRatingCount(ratingCount);
 
         } else {
-          toast.error("Profile not found");
+          // Fallback if profile not found
+          setUserData({
+            id: profileId,
+            firstName: "Student",
+            lastName: "",
+            avatarUrl: defaultAvatar,
+            course: "Student",
+            semester: 1,
+          });
+          setUploadCount(0);
+          setSavedCount(0);
+          setTotalRatingSum(0);
+          setTotalRatingCount(0);
         }
       } catch (err: any) {
         toast.error(err.message || "Error loading user profile");
@@ -86,22 +114,24 @@ export default function Profile() {
     };
 
     fetchProfile();
-  }, [profileId]);
+  }, [profileId, currentUser]);
 
   const averageRating =
     totalRatingCount > 0
       ? (totalRatingSum / totalRatingCount).toFixed(1)
-      : "0.0";
+      : (userData?.reputationRating !== undefined ? userData.reputationRating.toFixed(1) : "5.0");
 
-  //get initials if no url
+  // Get initials if no url
   const getInitials = () => {
-    if (userData?.firstName && userData?.lastName) {
-      return (userData.firstName[0] + userData.lastName[0]).toUpperCase();
+    const firstName = userData?.firstName || "Student";
+    const lastName = userData?.lastName || "";
+    if (firstName && lastName) {
+      return (firstName[0] + lastName[0]).toUpperCase();
     }
-    return currentUser?.email?.slice(0, 2).toUpperCase() || "U";
+    return firstName.slice(0, 2).toUpperCase() || "S";
   };
 
-  // semester suffix
+  // Semester suffix
   const getSemesterSuffix = (sem: any) => {
     const s = parseInt(sem);
     if (isNaN(s)) return "";
@@ -111,7 +141,7 @@ export default function Profile() {
     return "th";
   };
 
-  //date format
+  // Date format
   const getJoinedDate = () => {
     if (!userData?.createdAt) return "Recently";
 
@@ -125,7 +155,7 @@ export default function Profile() {
     );
   };
 
-  // loading
+  // Loading
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -137,21 +167,27 @@ export default function Profile() {
     );
   }
 
-  //stats
+  // Stats
   const stats = [
     { label: "Total Uploads", value: uploadCount, icon: Upload, change: "Shared notes" },
-    { label: "Total Downloads", value: userData?.downloadsCount?.toString() || "0", icon: Download, change: "Retrieved notes" },
-    { label: "Total SavedNotes", value: savedCount.toString(), icon: Bookmark, change: "Saved notes" },
+    ...(isCurrentUser ? [
+      { label: "Total Downloads", value: userData?.downloadsCount?.toString() || "0", icon: Download, change: "Retrieved notes" },
+      { label: "Total SavedNotes", value: savedCount.toString(), icon: Bookmark, change: "Saved notes" },
+    ] : []),
     { label: "Average Rating", value: averageRating.toString(), icon: Star, change: "Reputation score" },
   ];
 
-  //image url
+  // Image url
   const imageUrl =
     userData?.avatarUrl &&
       userData.avatarUrl !== "null" &&
       userData.avatarUrl.trim() !== ""
       ? userData.avatarUrl
-      : currentUser?.photoURL;
+      : defaultAvatar;
+
+  const displayName = userData?.firstName
+    ? `${userData.firstName} ${userData.lastName || ""}`.trim()
+    : (isCurrentUser && (currentUser?.displayName || currentUser?.email?.split("@")[0])) || "Student";
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,12 +202,14 @@ export default function Profile() {
               </Button>
             </Link>
 
-            <Link to="/settings">
-              <Button variant="outline" size="sm">
-                <Settings className="w-4 h-4 mr-2" />
-                Edit Profile
-              </Button>
-            </Link>
+            {isCurrentUser && (
+              <Link to="/settings">
+                <Button variant="outline" size="sm">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Edit Profile
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -199,10 +237,7 @@ export default function Profile() {
 
               <div className="flex-1 text-center sm:text-left min-w-0 w-full">
                 <h1 className="text-xl sm:text-3xl font-bold mb-1 sm:mb-2 truncate text-foreground">
-                  {userData?.firstName && userData?.lastName
-                    ? `${userData.firstName} ${userData.lastName}`
-                    : currentUser?.displayName ||
-                    currentUser?.email?.split("@")[0]}
+                  {displayName}
                 </h1>
 
                 <p className="text-xs sm:text-base text-muted-foreground font-medium truncate">
@@ -214,10 +249,12 @@ export default function Profile() {
                 </p>
 
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mt-3 text-xs sm:text-sm text-muted-foreground justify-center sm:justify-start">
-                  <div className="flex items-center gap-1.5 justify-center sm:justify-start min-w-0">
-                    <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{userData?.email}</span>
-                  </div>
+                  {isCurrentUser && userData?.email && (
+                    <div className="flex items-center gap-1.5 justify-center sm:justify-start min-w-0">
+                      <Mail className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{userData.email}</span>
+                    </div>
+                  )}
 
                   <div className="flex items-center gap-1.5 justify-center sm:justify-start min-w-0">
                     <CalendarDays className="h-3.5 w-3.5 shrink-0" />
@@ -225,7 +262,7 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {userData?.bio && (
+                {isCurrentUser && userData?.bio && (
                   <p className="text-xs sm:text-sm max-w-2xl mt-3 sm:mt-4 leading-relaxed text-muted-foreground break-words">
                     {userData.bio}
                   </p>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, setDoc } from "firebase/firestore";
 import { onAuthStateChanged, signOut, updatePassword } from "firebase/auth";
 import { auth, db } from "../../../backend/Auth/firebase";
 import { motion, AnimatePresence } from "motion/react";
@@ -144,7 +144,6 @@ export default function DataPopup() {
       if (userDoc.exists()) {
         await updateDoc(userDocRef, updateData);
       } else {
-        const { setDoc } = await import("firebase/firestore");
         await setDoc(userDocRef, {
           ...updateData,
           email: auth.currentUser?.email || "",
@@ -155,6 +154,24 @@ export default function DataPopup() {
           reputationRating: 5.0
         });
       }
+
+      // 3. Save public profile details in Firestore
+      const publicDocRef = doc(db, "publicProfiles", userId);
+      const uploaderAvatar = userDoc.exists()
+        ? (userDoc.data().avatarUrl || auth.currentUser?.photoURL || "")
+        : (auth.currentUser?.photoURL || "");
+      const uploaderReputation = userDoc.exists()
+        ? (userDoc.data().reputationRating ?? 5.0)
+        : 5.0;
+
+      await setDoc(publicDocRef, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        avatarUrl: uploaderAvatar,
+        course: course.toUpperCase(),
+        semester: parseInt(semester),
+        reputationRating: uploaderReputation,
+      }, { merge: true });
 
       toast.success("Profile setup complete! Welcome to CAIAS NOTES.");
       setIsOpen(false);
@@ -182,7 +199,7 @@ export default function DataPopup() {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-lg overflow-y-auto">
+      <div className="pt-70 fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-lg overflow-y-auto">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}

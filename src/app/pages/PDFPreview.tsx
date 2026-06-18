@@ -63,6 +63,8 @@ export default function PDFPreview() {
 
   // Uploader's Data
   const [uploader, setUploader] = useState<any>(null);
+  const defaultAvatar = "https://api.dicebear.com/7.x/initials/svg?seed=Student";
+
   useEffect(() => {
     const fetchUploader = async () => {
       if (!note) return;
@@ -71,17 +73,31 @@ export default function PDFPreview() {
         return;
       }
       try {
-        const uploaderRef = doc(db, "users", note.uploadedBy);
+        const uploaderRef = doc(db, "publicProfiles", note.uploadedBy);
         const uploaderSnap = await getDoc(uploaderRef);
         if (uploaderSnap.exists()) {
+          const data = uploaderSnap.data();
           setUploader({
             id: uploaderSnap.id,
-            ...uploaderSnap.data(),
+            ...data,
+            firstName: data.firstName || "Student",
+            avatarUrl: data.avatarUrl || defaultAvatar,
+          });
+        } else {
+          setUploader({
+            id: note.uploadedBy,
+            firstName: "Student",
+            lastName: "",
+            avatarUrl: defaultAvatar,
           });
         }
       } catch (err: any) {
         console.warn("Failed to load uploader info (likely due to security rules):", err.message);
-        setUploader({ firstName: "Student", lastName: "" });
+        setUploader({
+          firstName: "Student",
+          lastName: "",
+          avatarUrl: defaultAvatar,
+        });
       } finally {
         setLoading(false);
       }
@@ -94,13 +110,13 @@ export default function PDFPreview() {
       uploader.avatarUrl !== "null" &&
       uploader.avatarUrl.trim() !== ""
       ? uploader.avatarUrl
-      : uploader?.photoURL;
+      : defaultAvatar;
 
   const getInitials = () => {
     if (uploader?.firstName && uploader?.lastName) {
       return (uploader.firstName[0] + uploader.lastName[0]).toUpperCase();
     }
-    return uploader?.email?.slice(0, 2).toUpperCase() || "U";
+    return "S";
   };
 
   //download Count function

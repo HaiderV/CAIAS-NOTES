@@ -73,6 +73,16 @@ export default function Register() {
           uploadedNotes: [],
         });
 
+        // Create public profile doc in Firestore
+        await setDoc(doc(db, "publicProfiles", user.uid), {
+          firstName,
+          lastName,
+          avatarUrl: "",
+          course: course.toUpperCase(),
+          semester: parseInt(semester),
+          reputationRating: 5.0,
+        });
+
         // Sign out the user so they are not automatically logged in
         await signOut(auth);
 
@@ -124,6 +134,15 @@ export default function Register() {
             downloadsCount: 0,
             reputationRating: 5.0,
             savedNotes: 0,
+          });
+
+          await setDoc(doc(db, "publicProfiles", user.uid), {
+            firstName,
+            lastName,
+            avatarUrl: user.profilePic || "",
+            course: "",
+            semester: 1,
+            reputationRating: 5.0,
           });
           toast.success("Welcome! Please complete your profile details.");
         } else {

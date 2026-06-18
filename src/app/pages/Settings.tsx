@@ -10,7 +10,7 @@ import { useTheme } from "next-themes";
 import Footer from "../components/Footer";
 import { useState, useEffect } from "react";
 import { onAuthStateChanged, EmailAuthProvider, reauthenticateWithCredential, updatePassword, deleteUser, GoogleAuthProvider, reauthenticateWithPopup } from "firebase/auth";
-import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, arrayRemove } from "firebase/firestore";
+import { doc, getDoc, updateDoc, collection, query, where, getDocs, deleteDoc, arrayRemove, setDoc } from "firebase/firestore";
 import { auth, db } from "../../../backend/Auth/firebase";
 import { toast } from "sonner";
 import ConfirmationPopup from "../components/ui/Confirmation";
@@ -103,107 +103,127 @@ export default function Settings() {
 
   const handleDeleteAccount = async () => {
     try {
-
       setIsDeletingAccount(true);
 
-      const user = auth.currentUser;
+      const currentUser = auth.currentUser;
 
-      if (!user) {
+      if (!currentUser) {
         toast.error("User not logged in");
         return;
       }
 
-      // =========================
-      // RE-AUTHENTICATE USER
-      // =========================
+      console.log("Starting account deletion");
 
-      const provider = user.providerData[0]?.providerId;
+      // Re-authenticate
+      const provider = currentUser.providerData[0]?.providerId;
 
       if (provider === "password") {
         if (!deletePassword) {
-          toast.error("Password is required to delete your account");
+          toast.error("Password is required");
           return;
         }
 
         const credential = EmailAuthProvider.credential(
-          user.email || "",
+          currentUser.email || "",
           deletePassword
         );
 
-        await reauthenticateWithCredential(user, credential);
+        await reauthenticateWithCredential(
+          currentUser,
+          credential
+        );
 
       } else if (provider === "google.com") {
-
         const googleProvider = new GoogleAuthProvider();
 
-        await reauthenticateWithPopup(user, googleProvider);
+        await reauthenticateWithPopup(
+          currentUser,
+          googleProvider
+        );
       }
 
-      // =========================
-      // DELETE USER NOTES
-      // =========================
+      console.log("Re-authentication successful");
 
+      // Find user's notes
       const notesQuery = query(
         collection(db, "notes"),
-        where("uploadedBy", "==", user.uid)
+        where("uploadedBy", "==", currentUser.uid)
       );
 
       const snapshot = await getDocs(notesQuery);
 
-      for (const noteDoc of snapshot.docs) {
+      console.log(
+        `Found ${snapshot.size} notes to delete`
+      );
 
+      // Delete notes
+      for (const noteDoc of snapshot.docs) {
         const noteData = noteDoc.data();
 
         try {
-
-          // =========================
-          // DELETE CLOUDINARY FILE
-          // =========================
-
           if (noteData.publicId) {
-
-            const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/delete-note-file`, {
-              publicId: noteData.publicId,
-            });
-
+            await axios.post(
+              `${import.meta.env.VITE_API_URL}/api/delete-note-file`,
+              {
+                publicId: noteData.publicId,
+              }
+            );
           }
 
-          // =========================
-          // DELETE FIRESTORE NOTE
-          // =========================
+          await deleteDoc(
+            doc(db, "notes", noteDoc.id)
+          );
 
-          await deleteDoc(doc(db, "notes", noteDoc.id));
+          console.log(
+            `Deleted note ${noteDoc.id}`
+          );
 
-        } catch (error: any) {
+        } catch (noteError) {
+          console.error(
+            "Failed deleting note:",
+            noteDoc.id,
+            noteError
+          );
 
-          toast.error(error.message || "Failed to delete note");
+          throw noteError;
         }
       }
 
-      // =========================
-      // DELETE USER PROFILE
-      // =========================
+      console.log("Deleting users document");
 
-      await deleteDoc(doc(db, "users", user.uid));
+      await deleteDoc(
+        doc(db, "users", currentUser.uid)
+      );
 
-      // =========================
-      // DELETE FIREBASE AUTH USER
-      // =========================
+      console.log("Deleting public profile");
 
-      await deleteUser(user);
+      await deleteDoc(
+        doc(db, "publicProfiles", currentUser.uid)
+      );
 
-      toast.success("Account deleted successfully");
+      console.log("Deleting Firebase Auth user");
 
-      setShowDeleteConfirm(false);
+      await deleteUser(currentUser);
+
+      toast.success(
+        "Account deleted successfully"
+      );
+
       navigate("/");
 
     } catch (error: any) {
+      console.error(
+        "Account deletion failed:",
+        error
+      );
 
-      toast.error(error.message);
-
+      toast.error(
+        error?.message ||
+        "Failed to delete account"
+      );
     } finally {
-
       setIsDeletingAccount(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -395,6 +415,16 @@ export default function Settings() {
         avatarUrl: avatarUrl,
         updatedAt: new Date().toISOString(),
       });
+
+      const publicDocRef = doc(db, "publicProfiles", currentUser.uid);
+      await setDoc(publicDocRef, {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        course: course.toUpperCase(),
+        semester: parseInt(semester),
+        avatarUrl: avatarUrl,
+      }, { merge: true });
+
       toast.success("Profile updated successfully!");
     } catch (err: any) {
       toast.error(err.message || "Failed to update profile. Please try again.");
