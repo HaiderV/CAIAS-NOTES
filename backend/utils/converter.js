@@ -37,6 +37,13 @@ function wrapText(text, maxW, font, fontSize) {
 
 // Convert text string into a formatted PDF buffer
 export async function convertTextToPdf(textTitle, rawText) {
+
+  rawText = rawText
+    .replace(/\t/g, '    ')      // tabs -> spaces
+    .replace(/\r/g, '')
+    .replace(/\u00A0/g, ' ')     // non-breaking spaces
+    .replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, '');
+
   const pdfDoc = await PDFDocument.create();
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -196,7 +203,10 @@ export async function convertToPdf(fileBuffer, originalName, mimeType) {
   }
 
   if (ext === 'docx') {
-    const { value: rawText } = await mammoth.extractRawText({ buffer: fileBuffer });
+    const { value: rawText } = await mammoth.extractRawText({
+      buffer: fileBuffer,
+    });
+
     return await convertTextToPdf(originalName, rawText);
   }
 

@@ -68,7 +68,7 @@ router.post("/", (req, res) => {
 
             try {
                 pdfBuffer = await convertToPdf(file.buffer, file.originalname, file.mimetype);
-                
+
                 // If converted, rename the original extension to .pdf
                 const ext = file.originalname.split('.').pop().toLowerCase();
                 if (ext !== 'pdf') {
@@ -76,6 +76,7 @@ router.post("/", (req, res) => {
                     finalMimetype = 'application/pdf';
                 }
             } catch (convErr) {
+                console.error("Conversion Error:", convErr);
                 return res.status(400).json({
                     success: false,
                     message: convErr.message || "Document conversion failed.",
