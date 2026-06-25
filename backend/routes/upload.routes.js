@@ -13,7 +13,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: {
-        fileSize: 50 * 1024 * 1024,
+        fileSize: 20 * 1024 * 1024,
     },
 });
 
@@ -25,7 +25,7 @@ router.post("/", (req, res) => {
             if (err.code === "LIMIT_FILE_SIZE") {
                 return res.status(400).json({
                     success: false,
-                    message: "The uploaded file is exceeding the upload criteria of 50MB limit.",
+                    message: "The uploaded file is exceeding the upload criteria of 20MB limit.",
                 });
             }
             return res.status(400).json({
@@ -84,22 +84,23 @@ router.post("/", (req, res) => {
                 });
             }
 
-            //compress pdf if it's greater than 20MB
-
-            pdfBuffer = await convertToPdf(
-                file.buffer,
-                file.originalname,
-                file.mimetype
-            );
-
+            // Check if final PDF size exceeds 20MB limit
             const pdfSizeMB = pdfBuffer.length / 1024 / 1024;
-
             if (pdfSizeMB > 20) {
-                pdfBuffer = await compressPdfToTargetSize(pdfBuffer, 20);
+                return res.status(400).json({
+                    success: false,
+                    message: `The converted PDF file size (${pdfSizeMB.toFixed(2)} MB) exceeds the 20MB limit.`,
+                });
             }
 
-            // Create base64 DataURI for the PDF buffer
-            const cloudinaryResult = await new Promise((resolve, reject) => {
+            // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
+            const lastDotIndex = finalName.lastIndexOf('.');
+            const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
+            const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
+            const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
+
+            // Upload to Cloudinary as raw file type
+            const result = await new Promise((resolve, reject) => {
                 const stream = cloudinary.uploader.upload_stream(
                     {
                         resource_type: "raw",
@@ -113,19 +114,6 @@ router.post("/", (req, res) => {
                 );
 
                 streamifier.createReadStream(pdfBuffer).pipe(stream);
-            });
-
-            // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
-            const lastDotIndex = finalName.lastIndexOf('.');
-            const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
-            const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
-            const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
-
-            // Upload to Cloudinary as raw file type
-            const result = await cloudinary.uploader.upload(dataURI, {
-                resource_type: "raw",
-                folder: "notes",
-                public_id: cloudinaryPublicId,
             });
 
             publicId = result.public_id;

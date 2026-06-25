@@ -58,9 +58,9 @@ export default function UploadNotes() {
       return;
     }
 
-    // Check file size (10MB limit)
-    if (selectedFile.size > 10 * 1024 * 1024) {
-      toast.error("File is exceeding the upload criteria of 10MB limit.");
+    // Check file size (20MB limit)
+    if (selectedFile.size > 20 * 1024 * 1024) {
+      toast.error("File is exceeding the upload criteria of 20MB limit.");
       return;
     }
 
@@ -293,7 +293,7 @@ export default function UploadNotes() {
                             or drag and drop
                           </p>
                           <p className="text-xs text-muted-foreground leading-normal">
-                            PDF, Word, PPTX, Text or Image formats (Max 10MB)
+                            PDF, Word, PPTX, Text or Image formats (Max 20MB)
                           </p>
                           <input
                             type="file"
