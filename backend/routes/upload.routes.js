@@ -4,6 +4,7 @@ import cloudinary from "../config/cloudinary.js";
 import { db } from "../config/firebaseAdmin.js";
 import admin from "firebase-admin";
 import { convertToPdf } from "../utils/converter.js";
+import streamifier from "streamifier";
 
 const router = express.Router();
 
@@ -12,7 +13,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 50 * 1024 * 1024,
     },
 });
 
@@ -24,7 +25,7 @@ router.post("/", (req, res) => {
             if (err.code === "LIMIT_FILE_SIZE") {
                 return res.status(400).json({
                     success: false,
-                    message: "The uploaded file is exceeding the upload criteria of 10MB limit.",
+                    message: "The uploaded file is exceeding the upload criteria of 50MB limit.",
                 });
             }
             return res.status(400).json({
@@ -83,9 +84,36 @@ router.post("/", (req, res) => {
                 });
             }
 
+            //compress pdf if it's greater than 20MB
+
+            pdfBuffer = await convertToPdf(
+                file.buffer,
+                file.originalname,
+                file.mimetype
+            );
+
+            const pdfSizeMB = pdfBuffer.length / 1024 / 1024;
+
+            if (pdfSizeMB > 20) {
+                pdfBuffer = await compressPdfToTargetSize(pdfBuffer, 20);
+            }
+
             // Create base64 DataURI for the PDF buffer
-            const base64 = pdfBuffer.toString("base64");
-            const dataURI = `data:${finalMimetype};base64,${base64}`;
+            const cloudinaryResult = await new Promise((resolve, reject) => {
+                const stream = cloudinary.uploader.upload_stream(
+                    {
+                        resource_type: "raw",
+                        folder: "notes",
+                        public_id: cloudinaryPublicId,
+                    },
+                    (error, result) => {
+                        if (error) reject(error);
+                        else resolve(result);
+                    }
+                );
+
+                streamifier.createReadStream(pdfBuffer).pipe(stream);
+            });
 
             // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
             const lastDotIndex = finalName.lastIndexOf('.');
