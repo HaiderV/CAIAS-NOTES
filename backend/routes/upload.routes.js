@@ -87,10 +87,17 @@ router.post("/", (req, res) => {
             const base64 = pdfBuffer.toString("base64");
             const dataURI = `data:${finalMimetype};base64,${base64}`;
 
+            // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
+            const lastDotIndex = finalName.lastIndexOf('.');
+            const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
+            const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
+            const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
+
             // Upload to Cloudinary as raw file type
             const result = await cloudinary.uploader.upload(dataURI, {
                 resource_type: "raw",
                 folder: "notes",
+                public_id: cloudinaryPublicId,
             });
 
             publicId = result.public_id;

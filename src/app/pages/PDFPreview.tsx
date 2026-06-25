@@ -2,7 +2,7 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import Footer from "../components/Footer";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import { doc, getDoc, runTransaction, serverTimestamp, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -28,6 +28,8 @@ export default function PDFPreview() {
   const isGuest = !user || user.isAnonymous;
   const navigate = useNavigate();
   const { noteId } = useParams();
+
+  const location = useLocation();
 
   //note data fetch 
   const [note, setNote] = useState<any>(null);
@@ -148,17 +150,34 @@ export default function PDFPreview() {
   //download pdf function
   const handleDownload = async () => {
     if (!note?.fileUrl) return;
+
     try {
+      const response = await fetch(note.fileUrl);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch file");
+      }
+
+      const blob = await response.blob();
+
+      const url = window.URL.createObjectURL(blob);
+
       const link = document.createElement("a");
-      link.href = note.fileUrl;
-      link.download = `${note?.title || "document"}.pdf`;
+      link.href = url;
+
+      const fileName = `${note?.title || "document"}.pdf`;
+      link.setAttribute("download", fileName);
+
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
       await handleDownloadCount();
-      toast.success("Downloaded Successfully!")
-    } catch (error: any) {
-      toast.error(error.message || "Failed to Download")
+      toast.success("Downloaded Successfully!");
+    } catch (error) {
+      toast.error("Failed to Download");
     }
   };
 
@@ -357,12 +376,16 @@ export default function PDFPreview() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(-1)}
-              className="shrink-0"
+              onClick={() => {
+                if (location.state?.fromBrowseNotes) {
+                  navigate(-1);
+                } else {
+                  navigate("/browse-notes");
+                }
+              }}
             >
               <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Go Back</span>
-              <span className="sm:hidden">Back</span>
+              Back
             </Button>
 
             <div className="flex items-center gap-2 max-w-full">

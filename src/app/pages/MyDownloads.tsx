@@ -104,17 +104,26 @@ export default function MyDownloads() {
     ) => {
         if (!fileUrl) return;
 
+        const toastId = toast.loading("Preparing download...");
         try {
+            const response = await fetch(fileUrl);
+            if (!response.ok) {
+                throw new Error("Failed to fetch file");
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
             const link = document.createElement("a");
-            link.href = fileUrl;
+            link.href = url;
             link.download = `${title || "document"}.pdf`;
 
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            toast.success("Downloaded Successfully!")
+            window.URL.revokeObjectURL(url);
+            toast.success("Downloaded Successfully!", { id: toastId });
         } catch (error: any) {
-            toast.error(error.message || "Error in downloading file!");
+            toast.error(error.message || "Error in downloading file!", { id: toastId });
         }
     };
 
