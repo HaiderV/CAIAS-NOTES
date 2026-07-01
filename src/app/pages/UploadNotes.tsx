@@ -58,9 +58,9 @@ export default function UploadNotes() {
       return;
     }
 
-    // Check file size (20MB limit)
-    if (selectedFile.size > 20 * 1024 * 1024) {
-      toast.error("File is exceeding the upload criteria of 20MB limit.");
+    // Check file size (10MB limit)
+    if (selectedFile.size > 10 * 1024 * 1024) {
+      toast.error("File is exceeding the upload criteria of 10MB limit.");
       return;
     }
 
@@ -293,7 +293,7 @@ export default function UploadNotes() {
                             or drag and drop
                           </p>
                           <p className="text-xs text-muted-foreground leading-normal">
-                            PDF, Word, PPTX, Text or Image formats (Max 20MB)
+                            PDF, Word, PPTX, Text or Image formats (Max 10MB)
                           </p>
                           <input
                             type="file"
@@ -466,10 +466,10 @@ export default function UploadNotes() {
                           </CardTitle>
                           <div className="text-xs text-blue-700 dark:text-blue-300 mt-2">
                             <ul className="space-y-1 list-disc list-inside">
-                              <li>Only upload your original notes or content you have permission to share</li>
-                              <li>Ensure the PDF is clear and readable</li>
-                              <li>Do not upload copyrighted textbooks or paid materials</li>
-                              <li>Be respectful and avoid inappropriate content</li>
+                              <li>Only upload notes and documents that you created or are authorized to share</li>
+                              <li>Make sure your PDF is clear, readable, and contains accurate content</li>
+                              <li>Uploading copyrighted textbooks, premium resources, or pirated material is strictly prohibited</li>
+                              <li>Do not upload harmful, offensive, misleading, or inappropriate content</li>
                             </ul>
                           </div>
                         </div>
