@@ -293,7 +293,7 @@ export default function UploadNotes() {
                             or drag and drop
                           </p>
                           <p className="text-xs text-muted-foreground leading-normal">
-                            PDF, Word, PPTX, Text or Image formats (Max 10MB)
+                            PDF, Word, PPTX, Text or Image formats (Max 30MB)
                           </p>
                           <input
                             type="file"

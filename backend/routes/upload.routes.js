@@ -13,7 +13,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
     storage,
     limits: {
-        fileSize: 10 * 1024 * 1024,
+        fileSize: 30 * 1024 * 1024,
     },
 });
 
@@ -25,7 +25,7 @@ router.post("/", (req, res) => {
             if (err.code === "LIMIT_FILE_SIZE") {
                 return res.status(400).json({
                     success: false,
-                    message: "The uploaded file is exceeding the upload criteria of 10MB limit.",
+                    message: "The uploaded file is exceeding the upload criteria of 30MB limit.",
                 });
             }
             return res.status(400).json({
@@ -84,12 +84,12 @@ router.post("/", (req, res) => {
                 });
             }
 
-            // Check if final PDF size exceeds 10MB limit
+            // Check if final PDF size exceeds 30MB limit
             const pdfSizeMB = pdfBuffer.length / 1024 / 1024;
-            if (pdfSizeMB > 10) {
+            if (pdfSizeMB > 30) {
                 return res.status(400).json({
                     success: false,
-                    message: `The converted PDF file size (${pdfSizeMB.toFixed(2)} MB) exceeds the 10MB limit.`,
+                    message: `The converted PDF file size (${pdfSizeMB.toFixed(2)} MB) exceeds the 30MB limit.`,
                 });
             }
 
