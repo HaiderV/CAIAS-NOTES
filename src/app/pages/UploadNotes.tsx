@@ -59,7 +59,7 @@ export default function UploadNotes() {
     }
 
     // Check file size (10MB limit)
-    if (selectedFile.size > 10 * 1024 * 1024) {
+    if (selectedFile.size > 30 * 1024 * 1024) {
       toast.error("File is exceeding the upload criteria of 10MB limit.");
       return;
     }
