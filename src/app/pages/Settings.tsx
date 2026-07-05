@@ -144,7 +144,8 @@ export default function Settings() {
 
       console.log("Re-authentication successful");
 
-      // Find user's notes
+      // new google drive implementation----
+      // Find all notes uploaded by this user
       const notesQuery = query(
         collection(db, "notes"),
         where("uploadedBy", "==", currentUser.uid)
@@ -152,44 +153,61 @@ export default function Settings() {
 
       const snapshot = await getDocs(notesQuery);
 
-      console.log(
-        `Found ${snapshot.size} notes to delete`
-      );
+      console.log(`Found ${snapshot.size} notes to delete`);
 
-      // Delete notes
+      // Let the backend delete each note
       for (const noteDoc of snapshot.docs) {
-        const noteData = noteDoc.data();
-
-        try {
-          if (noteData.publicId) {
-            await axios.post(
-              `${import.meta.env.VITE_API_URL}/api/delete-note-file`,
-              {
-                publicId: noteData.publicId,
-              }
-            );
-          }
-
-          await deleteDoc(
-            doc(db, "notes", noteDoc.id)
-          );
-
-          console.log(
-            `Deleted note ${noteDoc.id}`
-          );
-
-        } catch (noteError) {
-          console.error(
-            "Failed deleting note:",
-            noteDoc.id,
-            noteError
-          );
-
-          throw noteError;
-        }
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/upload/notes/${noteDoc.id}`
+        );
       }
 
-      console.log("Deleting users document");
+      // Find user's notes
+      // const notesQuery = query(
+      //   collection(db, "notes"),
+      //   where("uploadedBy", "==", currentUser.uid)
+      // );
+
+      // const snapshot = await getDocs(notesQuery);
+
+      // console.log(
+      //   `Found ${snapshot.size} notes to delete`
+      // );
+
+      // // Delete notes
+      // for (const noteDoc of snapshot.docs) {
+      //   const noteData = noteDoc.data();
+
+      //   try {
+      //     if (noteData.publicId) {
+      //       await axios.post(
+      //         `${import.meta.env.VITE_API_URL}/api/delete-note-file`,
+      //         {
+      //           publicId: noteData.publicId,
+      //         }
+      //       );
+      //     }
+
+      //     await deleteDoc(
+      //       doc(db, "notes", noteDoc.id)
+      //     );
+
+      //     console.log(
+      //       `Deleted note ${noteDoc.id}`
+      //     );
+
+      //   } catch (noteError) {
+      //     console.error(
+      //       "Failed deleting note:",
+      //       noteDoc.id,
+      //       noteError
+      //     );
+
+      //     throw noteError;
+      //   }
+      // }
+
+      // console.log("Deleting users document");
 
       await deleteDoc(
         doc(db, "users", currentUser.uid)
@@ -245,67 +263,76 @@ export default function Settings() {
       const snapshot = await getDocs(notesQuery);
       console.log("Found notes to delete:", snapshot.docs.length);
 
-      //deleting instances from all other users uploadedNotes and downloadedNotes array
+      // new google drive----
       for (const noteDoc of snapshot.docs) {
-        const allUsersSnapshot = await getDocs(collection(db, "users"));
-
-        const cleanupPromises = allUsersSnapshot.docs.map(async (userDoc) => {
-          const userData = userDoc.data();
-
-          const updates: any = {};
-
-          if (userData.savedNotes?.includes(noteDoc.id)) {
-            updates.savedNotes = arrayRemove(noteDoc.id);
-          }
-
-          if (userData.downloadedNotes?.includes(noteDoc.id)) {
-            updates.downloadedNotes = arrayRemove(noteDoc.id);
-          }
-
-          if (Object.keys(updates).length > 0) {
-            await updateDoc(userDoc.ref, updates);
-          }
-        });
-
-        await Promise.all(cleanupPromises);
-        const noteData = noteDoc.data();
         console.log("Deleting note:", noteDoc.id);
-        //deleting cloudinary files related to the note
-        try {
-          if (noteData.publicId) {
-            console.log("Deleting Cloudinary file:", noteData.publicId);
-            const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/delete-note-file`, {
-              publicId: noteData.publicId,
-            });
-            console.log("Cloudinary delete success:", response.data);
-          }
-          //deleting rating related to that note
-          const ratingsRef = collection(db, "notes", noteDoc.id, "ratings");
 
-          const ratingsSnapshot = await getDocs(ratingsRef);
-
-          const ratingDeletePromises = ratingsSnapshot.docs.map((ratingDoc) =>
-            deleteDoc(ratingDoc.ref)
-          );
-
-          await Promise.all(ratingDeletePromises);
-
-          console.log(
-            `Deleted ${ratingsSnapshot.docs.length} ratings for note ${noteDoc.id}`
-          );
-          //deleting the note document
-          await deleteDoc(doc(db, "notes", noteDoc.id));
-          console.log("Firestore note deleted:", noteDoc.id);
-
-          const userRef = doc(db, "users", auth.currentUser?.uid || "");
-          await updateDoc(userRef, {
-            uploadedNotes: [],
-          });
-          console.log("Firestore uploadsCount updated:");
-        } catch (error) {
-          console.error("Error deleting note:", noteDoc.id, error);
-        }
+        await axios.delete(
+          `${import.meta.env.VITE_API_URL}/api/upload/notes/${noteDoc.id}`
+        );
       }
+
+      //deleting instances from all other users uploadedNotes and downloadedNotes array
+      // for (const noteDoc of snapshot.docs) {
+      //   const allUsersSnapshot = await getDocs(collection(db, "users"));
+
+      //   const cleanupPromises = allUsersSnapshot.docs.map(async (userDoc) => {
+      //     const userData = userDoc.data();
+
+      //     const updates: any = {};
+
+      //     if (userData.savedNotes?.includes(noteDoc.id)) {
+      //       updates.savedNotes = arrayRemove(noteDoc.id);
+      //     }
+
+      //     if (userData.downloadedNotes?.includes(noteDoc.id)) {
+      //       updates.downloadedNotes = arrayRemove(noteDoc.id);
+      //     }
+
+      //     if (Object.keys(updates).length > 0) {
+      //       await updateDoc(userDoc.ref, updates);
+      //     }
+      //   });
+
+      //   await Promise.all(cleanupPromises);
+      //   const noteData = noteDoc.data();
+      //   console.log("Deleting note:", noteDoc.id);
+      //   //deleting cloudinary files related to the note
+      //   try {
+      //     if (noteData.publicId) {
+      //       console.log("Deleting Cloudinary file:", noteData.publicId);
+      //       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/delete-note-file`, {
+      //         publicId: noteData.publicId,
+      //       });
+      //       console.log("Cloudinary delete success:", response.data);
+      //     }
+      //     //deleting rating related to that note
+      //     const ratingsRef = collection(db, "notes", noteDoc.id, "ratings");
+
+      //     const ratingsSnapshot = await getDocs(ratingsRef);
+
+      //     const ratingDeletePromises = ratingsSnapshot.docs.map((ratingDoc) =>
+      //       deleteDoc(ratingDoc.ref)
+      //     );
+
+      //     await Promise.all(ratingDeletePromises);
+
+      //     console.log(
+      //       `Deleted ${ratingsSnapshot.docs.length} ratings for note ${noteDoc.id}`
+      //     );
+      //     //deleting the note document
+      //     await deleteDoc(doc(db, "notes", noteDoc.id));
+      //     console.log("Firestore note deleted:", noteDoc.id);
+
+      //     const userRef = doc(db, "users", auth.currentUser?.uid || "");
+      //     await updateDoc(userRef, {
+      //       uploadedNotes: [],
+      //     });
+      //     console.log("Firestore uploadsCount updated:");
+      //   } catch (error) {
+      //     console.error("Error deleting note:", noteDoc.id, error);
+      //   }
+      // }
 
       toast.success("All uploaded notes deleted successfully!");
       setShowDeleteNotesConfirm(false);
@@ -440,13 +467,164 @@ export default function Settings() {
     return email.slice(0, 2).toUpperCase() || "U";
   };
 
+  const loadingMessages = [
+    "Finding your notes...",
+    "Organizing notebooks...",
+    "Removing coffee stains...",
+    "Sharpening virtual pencils...",
+    "Looking for page 42...",
+    "Summoning forgotten formulas...",
+    "Making your notes look smarter...",
+    "Loading knowledge..."
+  ];
+
+  const [loadingText, setLoadingText] = useState(0);
+
+  useEffect(() => {
+    if (!pageLoading) return;
+
+    const interval = setInterval(() => {
+      setLoadingText((prev) => (prev + 1) % loadingMessages.length);
+    }, 2200);
+
+    return () => clearInterval(interval);
+  }, [pageLoading]);
+
+
   if (pageLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-4 border-indigo-600 border-t-transparent animate-spin" />
-          <p className="text-muted-foreground text-sm font-medium animate-pulse">Loading settings...</p>
+      <div className="relative min-h-screen bg-background flex items-center justify-center overflow-hidden select-none">
+
+        {/* Background Glow */}
+        <div className="absolute inset-0">
+          <div className="absolute -top-32 -left-24 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl animate-pulse" />
+          <div className="absolute bottom-0 right-0 h-80 w-80 rounded-full bg-violet-500/10 blur-3xl animate-pulse [animation-delay:1s]" />
         </div>
+
+        <div className="relative z-10 flex flex-col items-center gap-8">
+
+          {/* Book */}
+          <div className="relative w-24 h-20 flex items-center justify-center animate-[float_2.8s_ease-in-out_infinite] drop-shadow-[0_10px_25px_rgba(99,102,241,0.25)]">
+
+            {/* Spine */}
+            <div className="absolute w-1 h-16 bg-indigo-600 rounded-full opacity-40" />
+
+            {/* Covers */}
+            <div className="absolute right-1/2 w-10 h-14 border-2 border-r-0 border-indigo-600 rounded-l-md bg-background" />
+
+            <div className="absolute left-1/2 w-10 h-14 border-2 border-l-0 border-indigo-600 rounded-r-md bg-background" />
+
+            {/* Pages */}
+            {[0, 180, 360, 540].map((delay) => (
+              <div
+                key={delay}
+                className="absolute right-1/2 w-9 h-13 border-y border-l border-indigo-400 rounded-l-sm bg-background origin-right"
+                style={{
+                  animation: `pageFlip 1.6s infinite`,
+                  animationDelay: `${delay}ms`,
+                }}
+              />
+            ))}
+
+            {/* Bookmark */}
+            <div className="absolute top-[78%] left-1/2 -translate-x-1/2 w-1 h-5 bg-indigo-500 rounded-b-sm animate-[bookmark_2s_ease-in-out_infinite]" />
+          </div>
+
+          {/* Text */}
+          <div className="text-center space-y-2">
+
+            <h2 className="font-semibold text-lg text-foreground">
+              CAIAS Notes
+            </h2>
+
+            <p
+              key={loadingText}
+              className="text-sm text-muted-foreground animate-[fadeIn_0.5s]"
+            >
+              {loadingMessages[loadingText]}
+            </p>
+
+          </div>
+
+          {/* Loading Bar */}
+          <div className="w-56 h-1 rounded-full bg-muted overflow-hidden">
+
+            <div className="h-full w-20 rounded-full bg-indigo-500 animate-[loadingBar_1.8s_infinite]" />
+
+          </div>
+
+        </div>
+
+        <style>{`
+      
+      @keyframes float{
+        0%,100%{
+          transform:translateY(0px);
+        }
+        50%{
+          transform:translateY(-8px);
+        }
+      }
+
+      @keyframes pageFlip{
+
+        0%{
+          transform:rotateY(0deg);
+          opacity:1;
+        }
+
+        70%{
+          transform:rotateY(-180deg);
+          opacity:.8;
+        }
+
+        100%{
+          transform:rotateY(-180deg);
+          opacity:0;
+        }
+
+      }
+
+      @keyframes loadingBar{
+
+        0%{
+          transform:translateX(-120%);
+        }
+
+        100%{
+          transform:translateX(340%);
+        }
+
+      }
+
+      @keyframes bookmark{
+
+        0%,100%{
+          transform:translateX(-50%) rotate(0deg);
+        }
+
+        50%{
+          transform:translateX(-50%) rotate(6deg);
+        }
+
+      }
+
+      @keyframes fadeIn{
+
+        from{
+          opacity:0;
+          transform:translateY(6px);
+        }
+
+        to{
+          opacity:1;
+          transform:translateY(0);
+        }
+
+      }
+
+      `}</style>
+
       </div>
     );
   }

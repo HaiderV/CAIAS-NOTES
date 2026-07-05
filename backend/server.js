@@ -1,21 +1,24 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import dotenv from "dotenv";
 import uploadRoutes from "./routes/upload.routes.js";
-import cloudinary from "./config/cloudinary.js";
+// import cloudinary from "./config/cloudinary.js";
 import { db } from "./config/firebaseAdmin.js";
 import admin from "firebase-admin";
-
-dotenv.config();
+import fileRoutes from "./routes/file.routes.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+app.use("/api/files", fileRoutes);
+
 app.get("/", (req, res) => {
   res.send("Backend is running");
 });
+
+app.use("/api/upload", uploadRoutes);
 
 app.get("/api/notes/counts", async (req, res) => {
   try {
@@ -40,21 +43,21 @@ app.get("/api/notes/counts", async (req, res) => {
   }
 });
 
-app.post("/api/delete-note-file", async (req, res) => {
-  try {
-    const { publicId } = req.body;
-    if (!publicId) {
-      return res.status(400).json({ success: false, message: "publicId is required" });
-    }
-    const result = await cloudinary.uploader.destroy(publicId, {
-      resource_type: "raw",
-    });
-    res.json({ success: true, result });
-  } catch (error) {
-    console.error("Cloudinary destroy error:", error);
-    res.status(500).json({ success: false, message: "Delete failed" });
-  }
-});
+// app.post("/api/delete-note-file", async (req, res) => {
+//   try {
+//     const { publicId } = req.body;
+//     if (!publicId) {
+//       return res.status(400).json({ success: false, message: "publicId is required" });
+//     }
+//     const result = await cloudinary.uploader.destroy(publicId, {
+//       resource_type: "raw",
+//     });
+//     res.json({ success: true, result });
+//   } catch (error) {
+//     console.error("Cloudinary destroy error:", error);
+//     res.status(500).json({ success: false, message: "Delete failed" });
+//   }
+// });
 
 // Increment download count and optional user download tracking
 app.post("/api/notes/:noteId/download", async (req, res) => {
@@ -166,5 +169,3 @@ const PORT = 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-app.use("/api/upload", uploadRoutes);

@@ -1,10 +1,14 @@
 import express from "express";
 import multer from "multer";
-import cloudinary from "../config/cloudinary.js";
+// import cloudinary from "../config/cloudinary.js";
 import { db } from "../config/firebaseAdmin.js";
 import admin from "firebase-admin";
 import { convertToPdf } from "../utils/converter.js";
-import streamifier from "streamifier";
+// import streamifier from "streamifier";
+import {
+    uploadToGoogleDrive,
+    deleteFromGoogleDrive,
+} from "../utils/googleDriveUpload.js";
 
 const router = express.Router();
 
@@ -39,7 +43,8 @@ router.post("/", (req, res) => {
             });
         }
 
-        let publicId = null;
+        // let publicId = null;
+        let googleDriveFileId = null;
         let docRef = null;
 
         try {
@@ -94,29 +99,37 @@ router.post("/", (req, res) => {
             }
 
             // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
-            const lastDotIndex = finalName.lastIndexOf('.');
-            const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
-            const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
-            const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
+            // const lastDotIndex = finalName.lastIndexOf('.');
+            // const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
+            // const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
+            // const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
 
-            // Upload to Cloudinary as raw file type
-            const result = await new Promise((resolve, reject) => {
-                const stream = cloudinary.uploader.upload_stream(
-                    {
-                        resource_type: "raw",
-                        folder: "notes",
-                        public_id: cloudinaryPublicId,
-                    },
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                );
+            // Old storage Upload to Cloudinary as raw file type
+            // const result = await new Promise((resolve, reject) => {
+            //     const stream = cloudinary.uploader.upload_stream(
+            //         {
+            //             resource_type: "raw",
+            //             folder: "notes",
+            //             public_id: cloudinaryPublicId,
+            //         },
+            //         (error, result) => {
+            //             if (error) reject(error);
+            //             else resolve(result);
+            //         }
+            //     );
 
-                streamifier.createReadStream(pdfBuffer).pipe(stream);
-            });
+            //     streamifier.createReadStream(pdfBuffer).pipe(stream);
+            // });
 
-            publicId = result.public_id;
+            // New google Drive upload
+            const result = await uploadToGoogleDrive(
+                pdfBuffer,
+                finalName,
+                finalMimetype
+            );
+
+            // publicId = result.public_id;
+            googleDriveFileId = result.fileId;
 
             // Create document reference first so we know the ID
             docRef = db.collection("notes").doc();
@@ -131,8 +144,10 @@ router.post("/", (req, res) => {
                 description,
                 noteType,
 
-                fileUrl: result.secure_url,
-                publicId: result.public_id,
+                // fileUrl: result.secure_url,
+                // publicId: result.public_id,
+
+                storageFileId: result.fileId,
 
                 fileSize: `${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`,
                 fileName: finalName,
@@ -180,15 +195,13 @@ router.post("/", (req, res) => {
             }
 
             // Rollback Cloudinary file
-            if (publicId) {
+            if (googleDriveFileId) {
                 try {
-                    await cloudinary.uploader.destroy(publicId, {
-                        resource_type: "raw",
-                    });
-                    console.log("Rolled back Cloudinary file");
+                    await deleteFromGoogleDrive(googleDriveFileId);
+                    console.log("Rolled back Google Drive file");
                 } catch (rollbackError) {
                     console.error(
-                        "Failed to rollback Cloudinary file:",
+                        "Failed to rollback Google Drive file:",
                         rollbackError
                     );
                 }
@@ -200,6 +213,72 @@ router.post("/", (req, res) => {
             });
         }
     });
+});
+
+router.delete("/notes/:noteId", async (req, res) => {
+    try {
+        const { noteId } = req.params;
+
+        const noteRef = db.collection("notes").doc(noteId);
+        const noteSnap = await noteRef.get();
+
+        if (!noteSnap.exists) {
+            return res.status(404).json({
+                success: false,
+                message: "Note not found",
+            });
+        }
+
+        const noteData = noteSnap.data();
+
+        // Delete Google Drive file
+        if (noteData.storageFileId) {
+            await deleteFromGoogleDrive(noteData.storageFileId);
+        }
+
+        // Delete ratings subcollection
+        const ratingsSnapshot = await noteRef.collection("ratings").get();
+
+        await Promise.all(
+            ratingsSnapshot.docs.map((doc) => doc.ref.delete())
+        );
+
+        // Delete downloads subcollection
+        const downloadsSnapshot = await noteRef.collection("downloads").get();
+
+        await Promise.all(
+            downloadsSnapshot.docs.map((doc) => doc.ref.delete())
+        );
+
+        // Remove note from every user's arrays
+        const usersSnapshot = await db.collection("users").get();
+
+        await Promise.all(
+            usersSnapshot.docs.map(async (userDoc) => {
+                await userDoc.ref.update({
+                    savedNotes: admin.firestore.FieldValue.arrayRemove(noteId),
+                    downloadedNotes: admin.firestore.FieldValue.arrayRemove(noteId),
+                    uploadedNotes: admin.firestore.FieldValue.arrayRemove(noteId),
+                });
+            })
+        );
+
+        // Delete note document
+        await noteRef.delete();
+
+        return res.status(200).json({
+            success: true,
+            message: "Note deleted successfully.",
+        });
+
+    } catch (error) {
+        console.error("Delete Note Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message || "Failed to delete note.",
+        });
+    }
 });
 
 export default router;
