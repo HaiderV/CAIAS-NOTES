@@ -5,7 +5,7 @@ import Footer from "../components/Footer";
 import { useParams, useLocation } from "react-router-dom";
 import { doc, getDoc, runTransaction, serverTimestamp, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { auth, db } from "../../../backend/Auth/firebase";
 import { useAuth } from "./AuthContext";
@@ -34,6 +34,10 @@ export default function PDFPreview() {
   //note data fetch 
   const [note, setNote] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  //navigation helper
+  const [searchParams] = useSearchParams();
+  const fromBrowse = searchParams.get("from") === "browse";
 
   useEffect(() => {
     if (authLoading) return;
@@ -506,10 +510,10 @@ export default function PDFPreview() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                if (location.state?.fromBrowseNotes) {
+                if (fromBrowse && window.history.length > 1) {
                   navigate(-1);
                 } else {
-                  navigate("/browse-notes");
+                  navigate("/");
                 }
               }}
             >

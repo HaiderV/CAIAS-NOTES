@@ -830,7 +830,7 @@ export default function BrowseNotes() {
                               {/* Actions */}
                               <div className="flex flex-col sm:flex-row gap-2">
                                 <Link
-                                  to={`/pdf-preview/${note.noteId}`}
+                                  to={`/pdf-preview/${note.noteId}?from=browse`}
                                   className="w-full sm:flex-1"
                                 >
                                   <Button variant="outline" className="w-full">
