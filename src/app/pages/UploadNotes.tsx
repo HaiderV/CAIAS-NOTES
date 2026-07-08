@@ -151,12 +151,19 @@ export default function UploadNotes() {
       setNoteType("");
       setUploadProgress(0);
     } catch (error: any) {
-      toast.error(error.message || "Something went wrong");
-      setUploadError(
-        error.response?.data?.message ||
-        error.message ||
-        "An error occurred while uploading your note."
-      );
+      let rawMessage = error.response?.data?.message || error.message || "An error occurred while uploading your note.";
+      if (typeof rawMessage === "string") {
+        rawMessage = rawMessage
+          .replace(/https?:\/\/[^\s/$.?#].[^\s]*/gi, "the server")
+          .replace(/localhost:\d+/gi, "the server");
+      }
+      
+      const toastMessage = error.message 
+        ? error.message.replace(/https?:\/\/[^\s/$.?#].[^\s]*/gi, "the server") 
+        : "Something went wrong";
+
+      toast.error(toastMessage);
+      setUploadError(rawMessage);
     } finally {
       setIsUploading(false);
       setUploadStage("idle");

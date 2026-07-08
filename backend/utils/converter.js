@@ -35,10 +35,47 @@ function wrapText(text, maxW, font, fontSize) {
   return lines;
 }
 
+const WIN_ANSI_CHARS = new Set([
+  9, 10, 13, // \t, \n, \r
+  ...Array.from({ length: 95 }, (_, i) => i + 32), // 32 to 126
+  ...Array.from({ length: 96 }, (_, i) => i + 160), // 160 to 255
+  0x20AC, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x017D,
+  0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x017E, 0x0178
+]);
+
+function sanitizeToWinAnsi(text) {
+  if (!text) return "";
+  
+  const map = {
+    '\u2212': '-', // minus sign
+    '\u2013': '-', // en dash
+    '\u2014': '-', // em dash
+    '\u201c': '"', // left double quote
+    '\u201d': '"', // right double quote
+    '\u2018': "'", // left single quote
+    '\u2019': "'", // right single quote
+    '\u00A0': ' ', // non-breaking space
+  };
+
+  let sanitized = "";
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const mapped = map[char] !== undefined ? map[char] : char;
+    const code = mapped.charCodeAt(0);
+    if (WIN_ANSI_CHARS.has(code)) {
+      sanitized += mapped;
+    } else {
+      sanitized += "?";
+    }
+  }
+  return sanitized;
+}
+
 // Convert text string into a formatted PDF buffer
 export async function convertTextToPdf(textTitle, rawText) {
 
-  rawText = rawText
+  textTitle = sanitizeToWinAnsi(textTitle);
+  rawText = sanitizeToWinAnsi(rawText)
     .replace(/\t/g, '    ')      // tabs -> spaces
     .replace(/\r/g, '')
     .replace(/\u00A0/g, ' ')     // non-breaking spaces
