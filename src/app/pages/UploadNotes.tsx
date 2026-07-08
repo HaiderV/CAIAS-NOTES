@@ -16,6 +16,11 @@ import {
   X,
   Check,
   AlertCircle,
+  Loader2,
+  Cloud,
+  Database,
+  Sparkles,
+  Server,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import axios from "axios";
@@ -30,6 +35,11 @@ export default function UploadNotes() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadComplete, setUploadComplete] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Loading & processing stages state
+  const [uploadStage, setUploadStage] = useState<"idle" | "uploading" | "converting" | "storing" | "finalizing">("idle");
+  const [animatedProgress, setAnimatedProgress] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const [title, setTitle] = useState("");
   const [subject, setSubject] = useState("");
@@ -88,6 +98,9 @@ export default function UploadNotes() {
 
     try {
       setIsUploading(true);
+      setUploadStage("uploading");
+      setAnimatedProgress(0);
+      setElapsedSeconds(0);
       setUploadProgress(0);
       setUploadError(null);
 
@@ -146,32 +159,104 @@ export default function UploadNotes() {
       );
     } finally {
       setIsUploading(false);
+      setUploadStage("idle");
     }
   };
 
-  //upload message
-  const uploadMessages = [
-    "Uploading your notes...",
-    "This may take a few seconds...",
-    "The server is waking up...",
-    "Our backend is hosted on Render and may need a moment to start.",
-    "Almost there..."
-  ];
-
-  const [messageIndex, setMessageIndex] = useState(0);
-
+  // Timer for elapsed seconds
   useEffect(() => {
     if (!isUploading) {
-      setMessageIndex(0);
+      setElapsedSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isUploading]);
+
+  // Main progress animation logic
+  useEffect(() => {
+    if (!isUploading) {
+      setAnimatedProgress(0);
+      setUploadStage("idle");
       return;
     }
 
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % uploadMessages.length);
-    }, 3000);
+      setAnimatedProgress((prev) => {
+        if (uploadStage === "uploading") {
+          // If we have actual upload progress from axios, match it
+          if (uploadProgress > 0) {
+            if (uploadProgress >= 100) {
+              setUploadStage("converting");
+              return 100;
+            }
+            // Smoothly approach the actual upload progress
+            return prev + (uploadProgress - prev) * 0.15;
+          } else {
+            // If uploadProgress is stuck at 0 (or browser isn't reporting),
+            // smoothly climb towards 90%
+            if (prev < 90) {
+              const diff = 90 - prev;
+              const step = Math.max(0.4, diff * 0.05);
+              const nextVal = prev + step;
+              if (nextVal >= 89.9) {
+                setUploadStage("converting");
+                return 90;
+              }
+              return nextVal;
+            }
+            return prev;
+          }
+        } else if (uploadStage === "converting") {
+          // Creep progress from 90% to 95%
+          if (prev < 95) {
+            return prev + 0.1;
+          }
+          return prev;
+        } else if (uploadStage === "storing") {
+          // Creep progress from 95% to 98%
+          if (prev < 98) {
+            return prev + 0.05;
+          }
+          return prev;
+        } else if (uploadStage === "finalizing") {
+          // Creep progress from 98% to 99.5%
+          if (prev < 99.5) {
+            return prev + 0.02;
+          }
+          return prev;
+        }
+        return prev;
+      });
+    }, 100);
 
     return () => clearInterval(interval);
-  }, [isUploading]);
+  }, [isUploading, uploadProgress, uploadStage]);
+
+  // Handle stage transitions based on time when upload is 100% or estimated.
+  // Converting -> Storing -> Finalizing
+  useEffect(() => {
+    if (!isUploading || uploadStage === "idle" || uploadStage === "uploading") return;
+
+    let delay = 6000; // 6 seconds for conversion phase
+    if (uploadStage === "storing") {
+      delay = 8000; // 8 seconds for cloud storage upload phase
+    } else if (uploadStage === "finalizing") {
+      delay = 5000; // 5 seconds for database finalize phase
+    }
+
+    const timer = setTimeout(() => {
+      if (uploadStage === "converting") {
+        setUploadStage("storing");
+      } else if (uploadStage === "storing") {
+        setUploadStage("finalizing");
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [uploadStage, isUploading]);
 
   return (
     <div className="min-h-dvh bg-background overflow-x-hidden">
@@ -244,7 +329,164 @@ export default function UploadNotes() {
               <p className="text-muted-foreground">Share your study materials with fellow students</p>
             </div>
 
-            <Card className="border-0 shadow-xl">
+            <Card className="border-0 shadow-xl relative overflow-hidden">
+              <AnimatePresence>
+                {isUploading && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-background/90 dark:bg-background/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 sm:p-10 text-center"
+                  >
+                    {/* Glowing circular progress bar */}
+                    <div className="relative w-32 h-32 flex items-center justify-center mb-6">
+                      <svg className="w-full h-full transform -rotate-90">
+                        <defs>
+                          <linearGradient id="progressGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor="#4f46e5" />
+                            <stop offset="50%" stopColor="#9333ea" />
+                            <stop offset="100%" stopColor="#2563eb" />
+                          </linearGradient>
+                        </defs>
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="50"
+                          className="stroke-muted/30 dark:stroke-muted/20"
+                          strokeWidth="8"
+                          fill="transparent"
+                        />
+                        <circle
+                          cx="64"
+                          cy="64"
+                          r="50"
+                          stroke="url(#progressGrad)"
+                          strokeWidth="8"
+                          fill="transparent"
+                          strokeDasharray={314.159}
+                          strokeDashoffset={314.159 - (Math.min(100, Math.max(0, animatedProgress)) / 100) * 314.159}
+                          strokeLinecap="round"
+                          style={{
+                            filter: "drop-shadow(0 0 8px rgba(99, 102, 241, 0.4))",
+                            transition: "stroke-dashoffset 0.15s ease-out"
+                          }}
+                        />
+                      </svg>
+                      <div className="absolute flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-foreground">
+                          {Math.round(animatedProgress)}%
+                        </span>
+                        <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-widest mt-0.5">
+                          {uploadStage}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 bg-clip-text text-transparent mb-1">
+                      Processing Your Note
+                    </h3>
+                    <p className="text-sm text-muted-foreground max-w-sm mb-6">
+                      Your note is being uploaded, converted, and secured. Please do not close or refresh this page.
+                    </p>
+
+                    {/* Step Tracker */}
+                    <div className="w-full max-w-xs space-y-3 mx-auto text-left">
+                      {[
+                        {
+                          key: "uploading",
+                          label: "Transmitting file to server",
+                          status:
+                            uploadStage === "uploading"
+                              ? "active"
+                              : uploadStage !== "idle"
+                                ? "completed"
+                                : "pending",
+                          icon: Upload,
+                        },
+                        {
+                          key: "converting",
+                          label: "Converting to PDF format",
+                          status:
+                            uploadStage === "converting"
+                              ? "active"
+                              : ["storing", "finalizing"].includes(uploadStage)
+                                ? "completed"
+                                : "pending",
+                          icon: Sparkles,
+                        },
+                        {
+                          key: "storing",
+                          label: "Uploading to Google Drive",
+                          status:
+                            uploadStage === "storing"
+                              ? "active"
+                              : ["finalizing"].includes(uploadStage)
+                                ? "completed"
+                                : "pending",
+                          icon: Cloud,
+                        },
+                        {
+                          key: "finalizing",
+                          label: "Saving database records",
+                          status: uploadStage === "finalizing" ? "active" : "pending",
+                          icon: Database,
+                        },
+                      ].map((step) => {
+                        const isActive = step.status === "active";
+                        const isCompleted = step.status === "completed";
+
+                        return (
+                          <div
+                            key={step.key}
+                            className={`flex items-center gap-3 transition-all duration-300 ${isActive
+                                ? "opacity-100 font-semibold scale-102"
+                                : isCompleted
+                                  ? "opacity-75 text-muted-foreground"
+                                  : "opacity-35 text-muted-foreground"
+                              }`}
+                          >
+                            <div className="flex-shrink-0">
+                              {isCompleted ? (
+                                <div className="w-6 h-6 rounded-full bg-green-500/10 border border-green-500 flex items-center justify-center text-green-500 shadow-[0_0_6px_rgba(34,197,94,0.2)]">
+                                  <Check className="w-3.5 h-3.5" />
+                                </div>
+                              ) : isActive ? (
+                                <div className="w-6 h-6 rounded-full bg-indigo-500/10 border border-indigo-500 flex items-center justify-center text-indigo-500 shadow-[0_0_6px_rgba(99,102,241,0.2)]">
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                </div>
+                              ) : (
+                                <div className="w-6 h-6 rounded-full border border-muted/50 flex items-center justify-center text-muted-foreground/60">
+                                  <step.icon className="w-3.5 h-3.5" />
+                                </div>
+                              )}
+                            </div>
+                            <span className={`text-sm ${isActive ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                              {step.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Render Free-tier Wake up Helper */}
+                    <AnimatePresence>
+                      {elapsedSeconds > 12 && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          className="mt-6 p-4 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-100/50 dark:border-indigo-900/40 text-indigo-900 dark:text-indigo-200 text-xs text-center flex items-start gap-3 max-w-sm mx-auto shadow-sm"
+                        >
+                          <Server className="w-5 h-5 text-indigo-600 dark:text-indigo-400 flex-shrink-0 mt-0.5 animate-pulse" />
+                          <p className="text-left leading-normal font-medium">
+                            The server is waking up or processing. Since the backend is hosted on a free-tier Render server, this first request might take a minute. Thank you for your patience! ☕
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <CardHeader>
                 <CardTitle>Upload Details</CardTitle>
                 <CardDescription>Fill in the information about your notes</CardDescription>
@@ -359,6 +601,7 @@ export default function UploadNotes() {
                         <SelectItem value="Notes">Notes</SelectItem>
                         <SelectItem value="PYQP">PYQP</SelectItem>
                         <SelectItem value="Internal QP">Internal QP</SelectItem>
+                        <SelectItem value="Lab">Lab</SelectItem>
                         <SelectItem value="Other">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -428,32 +671,7 @@ export default function UploadNotes() {
                     />
                   </div>
 
-                  {/* Upload Progress */}
-                  {isUploading && (
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between text-sm">
-                        <span>Uploading...</span>
-                        <span>{uploadProgress}%</span>
-                      </div>
 
-                      <Progress value={uploadProgress} className="h-2" />
-
-                      <div className="h-6 overflow-hidden">
-                        <AnimatePresence mode="wait">
-                          <motion.p
-                            key={messageIndex}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.5 }}
-                            className="text-sm text-muted-foreground"
-                          >
-                            {uploadMessages[messageIndex]}
-                          </motion.p>
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  )}
 
                   {/* Guidelines */}
                   <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
