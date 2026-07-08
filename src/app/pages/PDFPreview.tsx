@@ -626,32 +626,56 @@ export default function PDFPreview() {
               </CardContent>
             </Card>
 
-            {/* PDF Viewer Card */}
+            {/* PDF/PPTX Viewer Card */}
             <Card className="overflow-hidden border shadow-sm w-full">
               <CardContent className="p-0 w-full">
                 <div className="bg-muted/30 p-2 sm:p-4 w-full flex justify-center items-center overflow-x-hidden">
-                  <div className="w-full max-w-lg overflow-hidden flex justify-center">
+                  <div className="w-full max-w-2xl overflow-hidden flex justify-center">
                     {note?.noteId ? (
-                      <div ref={containerRef} className="w-full max-w-full rounded-lg overflow-hidden border bg-background shadow-inner">
-                        <Document
-                          // file={note.fileUrl}
-                          file={`${import.meta.env.VITE_API_URL}/api/files/view/${note.noteId}`}
-                          loading={
-                            <div className="h-48 sm:h-64 flex items-center justify-center text-sm text-muted-foreground">
-                              Loading PDF Preview...
+                      (() => {
+                        const isPdf = note.fileExtension
+                          ? note.fileExtension.toLowerCase() === "pdf"
+                          : note.fileName
+                          ? note.fileName.toLowerCase().endsWith(".pdf")
+                          : true;
+
+                        if (isPdf) {
+                          return (
+                            <div ref={containerRef} className="w-full max-w-full rounded-lg overflow-hidden border bg-background shadow-inner">
+                              <Document
+                                file={`${import.meta.env.VITE_API_URL}/api/files/view/${note.noteId}`}
+                                loading={
+                                  <div className="h-48 sm:h-64 flex items-center justify-center text-sm text-muted-foreground">
+                                    Loading PDF Preview...
+                                  </div>
+                                }
+                                className="flex justify-center w-full"
+                              >
+                                <Page
+                                  pageNumber={1}
+                                  width={containerWidth || 300}
+                                  renderTextLayer={false}
+                                  renderAnnotationLayer={false}
+                                  className="max-w-full block h-auto"
+                                />
+                              </Document>
                             </div>
-                          }
-                          className="flex justify-center w-full"
-                        >
-                          <Page
-                            pageNumber={1}
-                            width={containerWidth || 300}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            className="max-w-full block h-auto"
-                          />
-                        </Document>
-                      </div>
+                          );
+                        }
+
+                        return (
+                          <div className="w-full max-w-full rounded-lg overflow-hidden border bg-background shadow-inner flex flex-col items-center p-2 sm:p-4 bg-muted/5">
+                            <img
+                              src={`${import.meta.env.VITE_API_URL}/api/files/thumbnail/${note.id}`}
+                              alt="First slide preview"
+                              className="w-full h-auto max-h-[420px] object-contain rounded-lg border shadow-sm"
+                              onError={(e) => {
+                                e.currentTarget.src = "https://api.dicebear.com/7.x/initials/svg?seed=Notes";
+                              }}
+                            />
+                          </div>
+                        );
+                      })()
                     ) : (
                       <div className="h-48 sm:h-64 w-full flex items-center justify-center rounded-lg border border-dashed bg-muted/20">
                         <FileText className="w-10 h-10 text-muted-foreground/60" />
@@ -666,7 +690,14 @@ export default function PDFPreview() {
                     className="w-full text-sm font-medium transition-all"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Download PDF
+                    {(() => {
+                      const isPdf = note?.fileExtension
+                        ? note.fileExtension.toLowerCase() === "pdf"
+                        : note?.fileName
+                        ? note.fileName.toLowerCase().endsWith(".pdf")
+                        : true;
+                      return isPdf ? "Download PDF" : `Download Note`;
+                    })()}
                   </Button>
                 </div>
               </CardContent>

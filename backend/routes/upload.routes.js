@@ -67,68 +67,22 @@ router.post("/", (req, res) => {
 
             const file = req.file;
 
-            // Convert file to PDF if it's docx, pptx, image, or text
-            let pdfBuffer;
-            let finalName = file.originalname;
-            let finalMimetype = file.mimetype;
-
-            try {
-                pdfBuffer = await convertToPdf(file.buffer, file.originalname, file.mimetype);
-
-                // If converted, rename the original extension to .pdf
-                const ext = file.originalname.split('.').pop().toLowerCase();
-                if (ext !== 'pdf') {
-                    finalName = file.originalname.substring(0, file.originalname.lastIndexOf('.')) + '.pdf';
-                    finalMimetype = 'application/pdf';
-                }
-            } catch (convErr) {
-                console.error("Conversion Error:", convErr);
+            const ext = file.originalname.split('.').pop().toLowerCase();
+            const fileSizeMB = file.buffer.length / 1024 / 1024;
+            if (fileSizeMB > 30) {
                 return res.status(400).json({
                     success: false,
-                    message: convErr.message || "Document conversion failed.",
+                    message: `The uploaded file size (${fileSizeMB.toFixed(2)} MB) exceeds the 30MB limit.`,
                 });
             }
 
-            // Check if final PDF size exceeds 30MB limit
-            const pdfSizeMB = pdfBuffer.length / 1024 / 1024;
-            if (pdfSizeMB > 30) {
-                return res.status(400).json({
-                    success: false,
-                    message: `The converted PDF file size (${pdfSizeMB.toFixed(2)} MB) exceeds the 30MB limit.`,
-                });
-            }
-
-            // Generate a unique, sanitized public ID ending in .pdf for raw Cloudinary resource
-            // const lastDotIndex = finalName.lastIndexOf('.');
-            // const nameWithoutExt = lastDotIndex !== -1 ? finalName.substring(0, lastDotIndex) : finalName;
-            // const sanitizedName = nameWithoutExt.replace(/[^a-zA-Z0-9_\-.]/g, "_");
-            // const cloudinaryPublicId = `${Date.now()}-${sanitizedName}.pdf`;
-
-            // Old storage Upload to Cloudinary as raw file type
-            // const result = await new Promise((resolve, reject) => {
-            //     const stream = cloudinary.uploader.upload_stream(
-            //         {
-            //             resource_type: "raw",
-            //             folder: "notes",
-            //             public_id: cloudinaryPublicId,
-            //         },
-            //         (error, result) => {
-            //             if (error) reject(error);
-            //             else resolve(result);
-            //         }
-            //     );
-
-            //     streamifier.createReadStream(pdfBuffer).pipe(stream);
-            // });
-
-            // New google Drive upload
+            // New google Drive upload (direct storage)
             const result = await uploadToGoogleDrive(
-                pdfBuffer,
-                finalName,
-                finalMimetype
+                file.buffer,
+                file.originalname,
+                file.mimetype
             );
 
-            // publicId = result.public_id;
             googleDriveFileId = result.fileId;
 
             // Create document reference first so we know the ID
@@ -144,13 +98,14 @@ router.post("/", (req, res) => {
                 description,
                 noteType,
 
-                // fileUrl: result.secure_url,
-                // publicId: result.public_id,
-
                 storageFileId: result.fileId,
 
-                fileSize: `${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`,
-                fileName: finalName,
+                fileSize: `${fileSizeMB.toFixed(2)} MB`,
+                fileName: file.originalname,
+                fileExtension: ext,
+                mimeType: file.mimetype,
+                webViewLink: result.webViewLink || "",
+                thumbnailLink: result.thumbnailLink || "",
 
                 uploadedBy,
 

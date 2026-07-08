@@ -20,7 +20,7 @@ export async function uploadToGoogleDrive(
             mimeType,
             body: stream,
         },
-        fields: "id,name",
+        fields: "id,name,thumbnailLink,webViewLink",
     });
 
     const fileId = response.data.id;
@@ -41,6 +41,8 @@ export async function uploadToGoogleDrive(
         fileId,
         fileName: response.data.name,
         fileUrl,
+        thumbnailLink: response.data.thumbnailLink,
+        webViewLink: response.data.webViewLink,
     };
 }
 
